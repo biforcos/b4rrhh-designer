@@ -12,10 +12,12 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // Sin rewrite: el backend sirve bajo context-path /api, asi que la ruta
+      // se pasa tal cual. Quitarle el prefijo aqui, como se hacia antes, le
+      // manda /concepts a un backend que espera /api/concepts.
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },
