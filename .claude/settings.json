@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(**/eslint.config.js)",
+      "Edit(**/.editorconfig)"
+    ]
+  }
+}
