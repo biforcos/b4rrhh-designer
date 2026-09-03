@@ -34,7 +34,7 @@ vi.mock('@/components/ui/select', () => {
     )
   }
 
-  function SelectTrigger({ id, 'aria-label': ariaLabel, children }: { id?: string; 'aria-label'?: string; children?: React.ReactNode }) {
+  function SelectTrigger({ id, 'aria-label': ariaLabel }: { id?: string; 'aria-label'?: string; children?: React.ReactNode }) {
     const ctx = React.useContext(SelectContext)
     // Store id/ariaLabel on context for SelectContent to use
     ctx.id = id
@@ -79,7 +79,7 @@ beforeEach(() => {
       ruleSystemCode: 'ESP', conceptCode: 'SALBASE', conceptMnemonic: 'SAL_BASE',
       calculationType: 'DIRECT_AMOUNT', functionalNature: 'EARNING',
       resultCompositionMode: 'REPLACE', executionScope: 'PERIOD',
-      payslipOrderCode: null, persistToConcepts: true,
+      payslipOrderCode: null, persistToConcepts: true, summary: null,
     },
   ])
   vi.mocked(assignmentsApi.create).mockResolvedValue({

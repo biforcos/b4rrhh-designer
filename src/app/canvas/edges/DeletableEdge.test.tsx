@@ -1,6 +1,6 @@
 import { render, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import { ReactFlowProvider } from '@xyflow/react'
+import { Position, ReactFlowProvider } from '@xyflow/react'
 import { DeletableEdge } from './DeletableEdge'
 
 // EdgeLabelRenderer uses a portal that requires a full ReactFlow DOM setup.
@@ -19,10 +19,10 @@ const BASE_PROPS = {
   sourceY: 0,
   targetX: 200,
   targetY: 0,
-  sourcePosition: 'right' as const,
-  targetPosition: 'left' as const,
+  sourcePosition: Position.Right,
+  targetPosition: Position.Left,
   selected: false,
-  targetHandle: 'left',
+  targetHandleId: 'left',
   sourceHandle: null,
   source: 'A',
   target: 'B',
@@ -55,8 +55,8 @@ describe('DeletableEdge', () => {
     expect(document.body).not.toHaveTextContent('→ left')
   })
 
-  it('no muestra etiqueta si targetHandle es null', () => {
-    const { container } = render(wrap(<DeletableEdge {...BASE_PROPS} targetHandle={null} />))
+  it('no muestra etiqueta si targetHandleId es null', () => {
+    const { container } = render(wrap(<DeletableEdge {...BASE_PROPS} targetHandleId={null} />))
     const hitArea = container.querySelector('path[stroke="transparent"]')!
     fireEvent.mouseEnter(hitArea)
     expect(document.body).not.toHaveTextContent('→')

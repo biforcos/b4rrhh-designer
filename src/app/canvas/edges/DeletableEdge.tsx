@@ -5,7 +5,7 @@ export function DeletableEdge({
   id,
   sourceX, sourceY, targetX, targetY,
   sourcePosition, targetPosition,
-  targetHandle,
+  targetHandleId,
   style,
   markerEnd,
   selected,
@@ -53,7 +53,7 @@ export function DeletableEdge({
             ×
           </button>
         )}
-        {hovered && targetHandle && (
+        {hovered && targetHandleId && (
           <div
             style={{
               position: 'absolute',
@@ -62,7 +62,7 @@ export function DeletableEdge({
             }}
             className="bg-slate-700 border border-slate-500 text-slate-200 text-[8px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap"
           >
-            → {targetHandle}
+            → {targetHandleId}
           </div>
         )}
       </EdgeLabelRenderer>

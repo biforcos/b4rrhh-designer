@@ -36,7 +36,7 @@ export function CanvasPage() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterNatures, setFilterNatures] = useState<Set<FunctionalNature>>(new Set())
   const filterRef = useRef<HTMLDivElement>(null)
-  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance<ConceptFlowNode, ConceptFlowEdge> | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const { focusedNodeIds, neighborNodeIds, ancestorNodeIds, focusedEdgeIds, ancestorEdgeIds } =
     useGraphFocus(selectedNode?.id ?? null, edges)
@@ -248,7 +248,7 @@ export function CanvasPage() {
           </div>
         </div>
 
-        <ReactFlow
+        <ReactFlow<ConceptFlowNode, ConceptFlowEdge>
           nodes={displayNodes}
           edges={displayEdges}
           onNodesChange={onNodesChange}

@@ -69,7 +69,7 @@ export function CreateAssignmentDrawer({ open, onClose, ruleSystemCode }: Props)
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
           <div>
             <Label htmlFor="conceptCode" className="text-slate-400">Concepto</Label>
-            <Select value={form.conceptCode} onValueChange={v => setForm(f => ({ ...f, conceptCode: v }))}>
+            <Select value={form.conceptCode} onValueChange={v => setForm(f => ({ ...f, conceptCode: v ?? '' }))}>
               <SelectTrigger
                 id="conceptCode"
                 aria-label="Concepto"

@@ -6,6 +6,8 @@ const BASE_DATA = {
   resultCompositionMode: 'ACCUMULATE' as const,
   executionScope: 'SEGMENT' as const,
   payslipOrderCode: null,
+  persistToConcepts: true,
+  summary: null,
 }
 
 const wrapInProvider = (ui: React.ReactElement) => (
