@@ -1,0 +1,134 @@
+# ============================================================
+#  CI/CD del designer de B4RRHH
+#
+#  Mismo esqueleto que el del frontend, con dos diferencias: aqui no hay
+#  contrato que generar (el schema.d.ts esta versionado) y el resultado se
+#  sirve bajo /designer/, no en la raiz.
+#
+#  Los tests corren en un contenedor aparte y no en el del job para no
+#  depender de que la imagen del runner traiga Node 22, y para usar la
+#  misma version con la que se construye la imagen de produccion.
+#
+#  NO se pasa 'npm run lint' todavia: hoy da siete errores heredados en los
+#  componentes que genero shadcn (react-refresh/only-export-components) y uno
+#  de react-hooks. Meterlo aqui seria tumbar el build el primer dia por algo
+#  que no tiene que ver con el despliegue. Cuando esos siete esten resueltos,
+#  se anade y pasa a ser un candado como los del frontend.
+# ============================================================
+name: Test, build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: 192.168.1.104:3000/b4rrhh
+  IMAGEN: b4rrhh-designer
+  SERVIDOR: 192.168.1.151
+  NODE: node-designer-${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Pasar la suite
+        run: |
+          docker rm -f -v "${{ env.NODE }}" 2>/dev/null || true
+
+          # Techos sobre lo que tiene la CT104 (8 hilos, 12 GB), donde vive
+          # tambien Gitea. Sin ellos, un build deja la web sin responder.
+          #
+          # 'npm run build' entra en la suite a proposito: es 'tsc -b' antes de
+          # 'vite build', y es lo unico que comprueba tipos. 'npm run dev' no lo
+          # hace, asi que sin esto los errores de tipos se acumulan sin que nadie
+          # se entere — que es exactamente lo que habia pasado.
+          docker create \
+            --name "${{ env.NODE }}" \
+            --cpus 5 \
+            -m 4g \
+            -e CI=true \
+            -e TZ=Europe/Madrid \
+            -v b4rrhh-npm:/root/.npm \
+            -w /app \
+            node:22-alpine \
+            sh -c "npm ci && npm run build && npm test"
+
+          # El "/." copia el CONTENIDO: docker create -w /app ya ha creado /app,
+          # y sin el la carpeta entraria dentro (/app/designer/...).
+          docker cp "$GITHUB_WORKSPACE/." "${{ env.NODE }}":/app
+
+          # -a propaga el codigo de salida: si un test falla, el paso falla.
+          docker start -a "${{ env.NODE }}"
+
+      - name: Entrar en el registry
+        run: |
+          echo "${{ secrets.REGISTRY_TOKEN }}" \
+            | docker login ${{ env.REGISTRY }} -u "${{ secrets.REGISTRY_USER }}" --password-stdin
+
+      - name: Construir y subir la imagen
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGEN }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGEN }}:latest \
+            .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGEN }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGEN }}:latest
+
+      - name: Preparar la llave SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H ${{ env.SERVIDOR }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Desplegar
+        run: |
+          # Solo se toca .env.designer-tag: cada pipeline manda sobre su imagen
+          # y ninguna le cambia la suya a las demas.
+          #
+          # El 'if' es por el arranque en frio y solo sirve la primera vez: el
+          # servicio 'designer' lo declara el repo deploy, asi que hasta que ese
+          # se despliegue, aqui no hay nada que levantar. Sin esta comprobacion
+          # el primer push tendria que salir rojo por un motivo que no es un
+          # fallo. La imagen ya esta publicada cuando llegamos aqui, que es lo
+          # que el repo deploy necesita para poder levantarla.
+          ssh -i ~/.ssh/deploy deploy@${{ env.SERVIDOR }} \
+            "cd /opt/b4rrhh && \
+             [ -f .env.api-tag ] || echo 'API_TAG=latest' > .env.api-tag && \
+             [ -f .env.web-tag ] || echo 'WEB_TAG=latest' > .env.web-tag && \
+             echo 'DESIGNER_TAG=${{ github.sha }}' > .env.designer-tag && \
+             COMPOSE='docker compose --env-file .env --env-file .env.api-tag --env-file .env.web-tag --env-file .env.designer-tag' && \
+             if \$COMPOSE config --services | grep -qx designer; then \
+               \$COMPOSE pull designer && \$COMPOSE up -d && docker image prune -f; \
+             else \
+               echo 'La pila de la CT todavia no declara el servicio designer.'; \
+               echo 'Imagen publicada: se levantara al desplegar el repo deploy.'; \
+             fi"
+
+      - name: Comprobar que sigue en pie
+        run: |
+          sleep 10
+          ssh -i ~/.ssh/deploy deploy@${{ env.SERVIDOR }} \
+            "cd /opt/b4rrhh && docker compose ps --format '{{.Name}} {{.Status}}'"
+
+      - name: Recoger el contenedor de los tests y podar el runner
+        if: always()
+        run: |
+          # -v: sin el, "docker rm" deja vivo cualquier volumen anonimo del
+          # contenedor (mismo patron que en frontend y backend).
+          docker rm -f -v "${{ env.NODE }}" 2>/dev/null || true
+
+          for repo in $(docker images --format '{{.Repository}}' \
+                          --filter "reference=${{ env.REGISTRY }}/*" | sort -u); do
+            docker images "$repo" --format '{{.Tag}}' \
+              | grep -v -e '^latest$' -e '^<none>$' \
+              | tail -n +3 \
+              | xargs -r -I{} docker rmi "$repo:{}" || true
+          done
+          docker image prune -f || true
+          docker builder prune -af --filter until=168h || true
