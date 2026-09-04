@@ -1,5 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-@import "tailwindcss";
+/*
+ * Tailwind 4 rastrea clases desde la raiz del proyecto, y eso metia en el
+ * bundle los fragmentos de codigo de docs/superpowers/*.md (llenos de slate-*).
+ * source() acota el rastreo; la ruta es relativa a esta hoja, que ya vive en
+ * src/, por eso es "." y no "./src" (designer#5).
+ */
+@import "tailwindcss" source(".");
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
