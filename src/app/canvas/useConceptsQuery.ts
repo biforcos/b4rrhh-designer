@@ -7,13 +7,6 @@ const GRID_COLS = 4
 const NODE_WIDTH = 160
 const NODE_HEIGHT = 120
 
-const OPERAND_STROKE: Record<string, string> = {
-  qty:  '#38bdf8',
-  rate: '#fbbf24',
-  base: '#a78bfa',
-  pct:  '#f472b6',
-}
-
 // Backend OperandRole enum uses QUANTITY/PERCENTAGE; frontend handles use qty/pct
 const ROLE_TO_HANDLE: Record<string, string> = {
   QUANTITY:   'qty',
@@ -71,7 +64,6 @@ export function useConceptGraph(ruleSystemCode: string) {
             sourceHandle: 'out',
             target: c.conceptCode,
             targetHandle: role,
-            style: { stroke: OPERAND_STROKE[role] ?? '#64748b', strokeWidth: 1.5 },
             data: { operandRole: op.operandRole },
           })
         })
@@ -83,7 +75,6 @@ export function useConceptGraph(ruleSystemCode: string) {
             sourceHandle: 'out',
             target: c.conceptCode,
             targetHandle: 'feed',
-            style: feed.invertSign ? { stroke: '#f87171', strokeWidth: 1.5 } : { stroke: '#4ade80', strokeWidth: 1.5 },
             data: { invertSign: feed.invertSign },
           })
         })

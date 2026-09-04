@@ -6,7 +6,7 @@ import '@xyflow/react/dist/style.css'
 import { ConceptNode } from './nodes/ConceptNode'
 import { DeletableEdge } from './edges/DeletableEdge'
 import { useConceptGraph } from './useConceptsQuery'
-import type { ConceptFlowNode, ConceptFlowEdge, FunctionalNature } from './types'
+import type { ConceptFlowNode, ConceptFlowEdge, EdgeFocus, FunctionalNature } from './types'
 import { CreateConceptDrawer } from './CreateConceptDrawer'
 import { useSaveGraph } from './useSaveGraph'
 import { CanvasLegend, NatureSwatch } from './CanvasLegend'
@@ -151,16 +151,13 @@ export function CanvasPage() {
       : withState.map(n => ({ ...n, hidden: !filterNatures.has(n.data.functionalNature) }))
   }, [nodes, filterNatures, handleEditSummary, selectedNode, focusedNodeIds, neighborNodeIds, ancestorNodeIds])
 
+  // Con un nodo seleccionado, cada arista esta en su camino o fuera de el; el
+  // trazo lo decide DeletableEdge a partir de ese hecho, no de un color.
   const displayEdges = useMemo(() => {
     if (!selectedNode) return edges
     return edges.map(e => {
-      if (focusedEdgeIds.has(e.id)) {
-        return { ...e, style: { ...e.style, stroke: '#a78bfa', strokeWidth: 2, opacity: 1 } }
-      }
-      if (ancestorEdgeIds.has(e.id)) {
-        return { ...e, style: { ...e.style, stroke: '#6366f1', strokeWidth: 1.5, opacity: 0.6 } }
-      }
-      return { ...e, style: { ...e.style, opacity: 0.08 } }
+      const focus: EdgeFocus = focusedEdgeIds.has(e.id) || ancestorEdgeIds.has(e.id) ? 'path' : 'dimmed'
+      return { ...e, data: { ...e.data, focus } }
     })
   }, [edges, selectedNode, focusedEdgeIds, ancestorEdgeIds])
 

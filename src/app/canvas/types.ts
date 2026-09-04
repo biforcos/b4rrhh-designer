@@ -23,7 +23,10 @@ export interface ConceptNodeData extends Record<string, unknown> {
 }
 
 export type ConceptFlowNode = Node<ConceptNodeData, 'concept'>
-export type ConceptFlowEdge = Edge<{ operandRole?: string; invertSign?: boolean }>
+
+/** Estado de presentacion de una arista respecto al nodo seleccionado. */
+export type EdgeFocus = 'path' | 'dimmed'
+export type ConceptFlowEdge = Edge<{ operandRole?: string; invertSign?: boolean; focus?: EdgeFocus }>
 
 export const INPUT_PORTS: Record<CalculationType, string[]> = {
   DIRECT_AMOUNT:    [],

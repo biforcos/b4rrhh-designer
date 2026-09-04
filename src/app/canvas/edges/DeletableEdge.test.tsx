@@ -61,4 +61,19 @@ describe('DeletableEdge', () => {
     fireEvent.mouseEnter(hitArea)
     expect(document.body).not.toHaveTextContent('→')
   })
+
+  it('traza continuo un feed que suma', () => {
+    const { container } = render(wrap(<DeletableEdge {...BASE_PROPS} data={{ invertSign: false }} />))
+    expect(container.querySelector('path.react-flow__edge-path')).not.toHaveAttribute('stroke-dasharray')
+  })
+
+  it('traza discontinuo el feed que invierte el signo', () => {
+    const { container } = render(wrap(<DeletableEdge {...BASE_PROPS} data={{ invertSign: true }} />))
+    expect(container.querySelector('path.react-flow__edge-path')).toHaveAttribute('stroke-dasharray', '4 3')
+  })
+
+  it('atenúa con puntos la arista fuera del camino del nodo seleccionado', () => {
+    const { container } = render(wrap(<DeletableEdge {...BASE_PROPS} data={{ invertSign: true, focus: 'dimmed' }} />))
+    expect(container.querySelector('path.react-flow__edge-path')).toHaveAttribute('stroke-dasharray', '1 3')
+  })
 })
