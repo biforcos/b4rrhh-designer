@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ReactFlow, Background, MiniMap, Controls, Panel, addEdge, useNodesState, useEdgesState, type Connection } from '@xyflow/react'
+import { ReactFlow, MiniMap, Controls, Panel, addEdge, useNodesState, useEdgesState, type Connection } from '@xyflow/react'
 import type { ReactFlowInstance } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ConceptNode } from './nodes/ConceptNode'
@@ -10,6 +10,7 @@ import type { ConceptFlowNode, ConceptFlowEdge, EdgeFocus, FunctionalNature } fr
 import { CreateConceptDrawer } from './CreateConceptDrawer'
 import { useSaveGraph } from './useSaveGraph'
 import { CanvasLegend, NatureSwatch } from './CanvasLegend'
+import { CanvasGrid } from './CanvasGrid'
 import { savePositions, loadPositionsOrLayout } from './graphPositions'
 import { ConceptDetailPanel } from './ConceptDetailPanel'
 import { NATURE_LABELS } from './conceptLabels'
@@ -257,11 +258,10 @@ export function CanvasPage() {
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
-          colorMode="dark"
         >
-          <Background color="#1e293b" gap={22} size={1} />
-          <MiniMap className="!bg-slate-900" nodeColor="#334155" />
-          <Controls className="!bg-slate-900 !border-slate-700" />
+          <CanvasGrid />
+          <MiniMap />
+          <Controls />
           <Panel position="bottom-right">
             <CanvasLegend />
           </Panel>
