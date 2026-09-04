@@ -267,7 +267,9 @@ export function CanvasPage() {
           fitView
         >
           <CanvasGrid />
-          <MiniMap />
+          {/* Con el panel de detalle abierto se mira un nodo, no se navega:
+              el minimapa sobra, y ademas el panel se le comia el borde. */}
+          {!selectedNode && <MiniMap />}
           <Controls />
           <Panel position="bottom-right">
             <CanvasLegend />
