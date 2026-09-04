@@ -3,9 +3,10 @@
  *
  * El designer cuelga de `/designer/` del mismo origen que el backoffice
  * (ver `vite.config.ts`), y se entra a el desde una entrada de menu de alli.
- * La salida natural es volver alli: una ruta del backoffice, fuera del router
- * de React, que se navega con `window.location` y nunca con `navigate`, que
- * la resolveria bajo el basename del designer.
+ * Las salidas —volver, o pedir sesion cuando no la hay— son rutas del
+ * backoffice, fuera del router de React: se navegan con `window.location`,
+ * nunca con `navigate` ni `<Navigate>`, que las resolverian bajo el basename
+ * del designer.
  *
  * El cierre de sesion de verdad vive en el backoffice. El designer no cierra
  * sesion: comparte `localStorage` con la pestaña de al lado y un `clear()`
@@ -17,3 +18,10 @@ export const DESIGNER_BASENAME = '/designer'
 
 /** Adonde lleva «Volver al backoffice». */
 export const BACKOFFICE_HOME = '/'
+
+/**
+ * Login del backoffice, al que se manda a quien llega sin sesion. El del
+ * designer (`/designer/login`) sigue existiendo como puerta de emergencia
+ * para el arranque en frio, pero no es adonde se redirige.
+ */
+export const BACKOFFICE_LOGIN = '/login'
