@@ -74,42 +74,42 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/60" onClick={onClose} />
-      <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4">
-        <p className="text-sm font-medium text-slate-200 mb-1">
-          {row ? 'Editar fila' : 'Nueva fila'} · <span className="font-mono text-sky-400">{tableCode}</span>
+      <div className="fixed inset-0 z-50 bg-surface-overlay" onClick={onClose} />
+      <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-surface-panel border border-border-default rounded-lg shadow-(--shadow-panel) p-4">
+        <p className="text-sm font-medium text-text-primary mb-1">
+          {row ? 'Editar fila' : 'Nueva fila'} · <span className="font-mono text-text-accent">{tableCode}</span>
         </p>
-        <p className="text-[9px] text-slate-500 mb-4">
+        <p className="text-[9px] text-text-tertiary mb-4">
           Los valores se usan en el motor de cálculo para resolver conceptos de tipo DIRECT_AMOUNT.
         </p>
 
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="col-span-1">
-            <label className="text-[9px] text-slate-500 uppercase tracking-wide">Código búsqueda *</label>
+            <label className="text-[9px] text-text-tertiary uppercase tracking-wide">Código búsqueda *</label>
             <input type="text" value={form.searchCode} onChange={set('searchCode')}
-              className="mt-0.5 w-full bg-slate-950 border border-slate-700 rounded text-[10px] text-slate-200 font-mono px-1.5 py-1 focus:outline-none focus:border-sky-500" />
+              className="mt-0.5 w-full bg-surface-panel border border-border-default rounded-sm text-[10px] text-text-primary font-mono px-1.5 py-1 focus:outline-none focus:border-accent-border focus:shadow-(--focus-ring)" />
           </div>
           <div>
-            <label className="text-[9px] text-slate-500 uppercase tracking-wide">Desde *</label>
+            <label className="text-[9px] text-text-tertiary uppercase tracking-wide">Desde *</label>
             <input type="date" value={form.startDate} onChange={set('startDate')}
-              className="mt-0.5 w-full bg-slate-950 border border-slate-700 rounded text-[10px] text-slate-200 px-1.5 py-1 focus:outline-none focus:border-sky-500" />
+              className="mt-0.5 w-full bg-surface-panel border border-border-default rounded-sm text-[10px] text-text-primary px-1.5 py-1 focus:outline-none focus:border-accent-border focus:shadow-(--focus-ring)" />
           </div>
           <div>
-            <label className="text-[9px] text-slate-500 uppercase tracking-wide">Hasta</label>
+            <label className="text-[9px] text-text-tertiary uppercase tracking-wide">Hasta</label>
             <input type="date" value={form.endDate} onChange={set('endDate')}
-              className="mt-0.5 w-full bg-slate-950 border border-slate-700 rounded text-[10px] text-slate-200 px-1.5 py-1 focus:outline-none focus:border-sky-500" />
+              className="mt-0.5 w-full bg-surface-panel border border-border-default rounded-sm text-[10px] text-text-primary px-1.5 py-1 focus:outline-none focus:border-accent-border focus:shadow-(--focus-ring)" />
           </div>
         </div>
 
-        <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-1.5">Valores salariales *</p>
+        <p className="text-[9px] text-text-tertiary uppercase tracking-wide mb-1.5">Valores salariales *</p>
         <div className="grid grid-cols-2 gap-2 mb-3">
           {(['monthlyValue', 'annualValue', 'dailyValue', 'hourlyValue'] as const).map(field => (
             <div key={field}>
-              <label className="text-[9px] text-slate-500">
+              <label className="text-[9px] text-text-tertiary">
                 {{ monthlyValue: 'Mensual (€)', annualValue: 'Anual (€)', dailyValue: 'Diario (€)', hourlyValue: 'Por hora (€)' }[field]}
               </label>
               <input type="number" step="0.01" value={form[field]} onChange={set(field)}
-                className="mt-0.5 w-full bg-slate-950 border border-slate-700 rounded text-[10px] text-slate-200 px-1.5 py-1 focus:outline-none focus:border-sky-500" />
+                className="mt-0.5 w-full bg-surface-panel border border-border-default rounded-sm text-[10px] text-text-primary px-1.5 py-1 focus:outline-none focus:border-accent-border focus:shadow-(--focus-ring)" />
             </div>
           ))}
         </div>
@@ -118,22 +118,22 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
           <label className="flex items-center gap-2 mb-3">
             <input type="checkbox" checked={form.active}
               onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
-              className="accent-sky-500" />
-            <span className="text-[10px] text-slate-400">Activo</span>
+              className="accent-accent-primary" />
+            <span className="text-[10px] text-text-secondary">Activo</span>
           </label>
         )}
 
         {mutation.isError && (
-          <p className="text-red-400 text-[9px] mb-2">Error al guardar la fila</p>
+          <p className="text-error-text text-[9px] mb-2">Error al guardar la fila</p>
         )}
 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose}
-            className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-md hover:bg-slate-700">
+            className="text-xs px-3 py-1.5 bg-surface-panel border border-border-default text-text-secondary rounded-md hover:bg-surface-hover hover:text-text-primary">
             Cancelar
           </button>
           <button type="button" disabled={mutation.isPending || !isValid} onClick={() => mutation.mutate()}
-            className="text-xs px-3 py-1.5 bg-sky-900 border border-sky-700 text-sky-300 rounded-md hover:bg-sky-800 disabled:opacity-50">
+            className="text-xs px-3 py-1.5 bg-accent-primary border border-accent-primary text-text-inverse rounded-md hover:bg-accent-primary-hover disabled:opacity-50">
             {mutation.isPending ? 'Guardando...' : 'Guardar fila'}
           </button>
         </div>

@@ -32,9 +32,9 @@ export function ObjectsPage() {
   return (
     <div className="flex h-full">
       {/* Left: object list */}
-      <div className="w-72 flex-shrink-0 flex flex-col border-r border-slate-800">
+      <div className="w-72 flex-shrink-0 flex flex-col border-r border-border-default">
         {/* Toolbar */}
-        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-border-default flex items-center justify-between">
           <div className="flex gap-1">
             {(['CONSTANT', 'TABLE'] as Tab[]).map(t => (
               <button
@@ -43,8 +43,8 @@ export function ObjectsPage() {
                 onClick={() => handleTabChange(t)}
                 className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
                   tab === t
-                    ? 'bg-sky-950 border-sky-700 text-sky-300'
-                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                    ? 'bg-surface-accent border-accent-border text-accent-primary'
+                    : 'bg-surface-panel border-border-default text-text-secondary hover:text-text-primary'
                 }`}
               >
                 {t === 'CONSTANT' ? 'Constantes' : 'Tablas'}
@@ -55,7 +55,7 @@ export function ObjectsPage() {
             <button
               type="button"
               onClick={() => setCreateTableOpen(true)}
-              className="text-[10px] px-2 py-1 bg-green-950 border border-green-800 text-green-400 rounded hover:bg-green-900"
+              className="text-[10px] px-2 py-1 bg-surface-panel border border-border-default text-text-secondary rounded-sm hover:bg-surface-hover hover:text-text-primary"
             >
               + Nueva
             </button>
@@ -65,11 +65,11 @@ export function ObjectsPage() {
         {/* List */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="p-4 text-slate-500 text-xs">Cargando...</div>
+            <div className="p-4 text-text-tertiary text-xs">Cargando...</div>
           ) : (
-            <table className="w-full text-xs text-slate-300 border-collapse">
+            <table className="w-full text-xs text-text-primary border-collapse">
               <thead>
-                <tr className="text-slate-500 text-left border-b border-slate-800">
+                <tr className="text-text-tertiary text-left border-b border-border-strong">
                   <th className="px-4 py-2">Código</th>
                   <th className="px-2 py-2">Activo</th>
                 </tr>
@@ -79,17 +79,17 @@ export function ObjectsPage() {
                   <tr
                     key={obj.objectCode}
                     onClick={() => handleRowClick(obj)}
-                    className={`border-b border-slate-900 transition-colors ${
+                    className={`border-b border-border-default transition-colors ${
                       tab === 'TABLE'
                         ? selectedTable === obj.objectCode
-                          ? 'bg-sky-950 border-sky-900 cursor-pointer'
-                          : 'hover:bg-slate-900/50 cursor-pointer'
+                          ? 'bg-surface-accent cursor-pointer'
+                          : 'hover:bg-surface-hover cursor-pointer'
                         : ''
                     }`}
                   >
                     <td className="px-4 py-2 font-mono">{obj.objectCode}</td>
                     <td className="px-2 py-2">
-                      <span className={obj.active ? 'text-green-400' : 'text-slate-600'}>
+                      <span className={obj.active ? 'text-success-text' : 'text-text-tertiary'}>
                         {obj.active ? '✓' : '—'}
                       </span>
                     </td>
@@ -105,7 +105,7 @@ export function ObjectsPage() {
       {tab === 'TABLE' && selectedTable ? (
         <TableRowPanel ruleSystemCode={ruleSystemCode} tableCode={selectedTable} />
       ) : tab === 'TABLE' ? (
-        <div className="flex-1 flex items-center justify-center text-slate-600 text-xs">
+        <div className="flex-1 flex items-center justify-center text-text-tertiary text-xs">
           Selecciona una tabla para ver sus filas
         </div>
       ) : null}
