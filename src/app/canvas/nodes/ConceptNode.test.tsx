@@ -36,6 +36,42 @@ describe('ConceptNode', () => {
     expect(screen.getByText('SALARIO_BASE')).toBeInTheDocument()
   })
 
+  it('muestra la naturaleza y el tipo de cálculo en texto', () => {
+    render(wrapInProvider(
+      <ConceptNode
+        id="101"
+        data={{ ...BASE_DATA, conceptCode: '101', conceptMnemonic: 'SB', calculationType: 'RATE_BY_QUANTITY', functionalNature: 'EARNING' }}
+        selected={false} type="concept" dragging={false} draggable={true} selectable={true} deletable={true}
+        zIndex={0} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0}
+      />
+    ))
+    expect(screen.getByText('Devengo · RATE×QTY')).toBeInTheDocument()
+  })
+
+  it('lleva la franja de la naturaleza: devengo en éxito, total devengos además con fondo', () => {
+    const { container, rerender } = render(wrapInProvider(
+      <ConceptNode
+        id="101"
+        data={{ ...BASE_DATA, conceptCode: '101', conceptMnemonic: 'SB', calculationType: 'RATE_BY_QUANTITY', functionalNature: 'EARNING' }}
+        selected={false} type="concept" dragging={false} draggable={true} selectable={true} deletable={true}
+        zIndex={0} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0}
+      />
+    ))
+    expect(container.firstChild).toHaveClass('border-l-success-text')
+    expect(container.firstChild).not.toHaveClass('bg-success-bg')
+
+    rerender(wrapInProvider(
+      <ConceptNode
+        id="td"
+        data={{ ...BASE_DATA, conceptCode: 'TD', conceptMnemonic: 'TOTAL', calculationType: 'AGGREGATE', functionalNature: 'TOTAL_EARNING' }}
+        selected={false} type="concept" dragging={false} draggable={true} selectable={true} deletable={true}
+        zIndex={0} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0}
+      />
+    ))
+    expect(container.firstChild).toHaveClass('border-l-success-text')
+    expect(container.firstChild).toHaveClass('bg-success-bg')
+  })
+
   it('muestra puertos qty y rate para RATE_BY_QUANTITY', () => {
     render(wrapInProvider(
       <ConceptNode
@@ -85,7 +121,7 @@ describe('ConceptNode', () => {
     expect(container.firstChild).toHaveClass('opacity-[0.12]')
   })
 
-  it('aplica borde violeta cuando neighborHighlight=true', () => {
+  it('marca en blanco al vecino cuando neighborHighlight=true', () => {
     const { container } = render(wrapInProvider(
       <ConceptNode
         id="b01"
@@ -94,6 +130,6 @@ describe('ConceptNode', () => {
         zIndex={0} isConnectable={true} positionAbsoluteX={0} positionAbsoluteY={0}
       />
     ))
-    expect(container.firstChild).toHaveClass('border-violet-500')
+    expect(container.firstChild).toHaveClass('outline-text-inverse')
   })
 })

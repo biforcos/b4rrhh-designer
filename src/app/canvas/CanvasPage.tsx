@@ -9,10 +9,10 @@ import { useConceptGraph } from './useConceptsQuery'
 import type { ConceptFlowNode, ConceptFlowEdge, FunctionalNature } from './types'
 import { CreateConceptDrawer } from './CreateConceptDrawer'
 import { useSaveGraph } from './useSaveGraph'
-import { CanvasLegend } from './CanvasLegend'
+import { CanvasLegend, NatureSwatch } from './CanvasLegend'
 import { savePositions, loadPositionsOrLayout } from './graphPositions'
 import { ConceptDetailPanel } from './ConceptDetailPanel'
-import { NATURE_LABELS, NATURE_COLORS } from './conceptLabels'
+import { NATURE_LABELS } from './conceptLabels'
 import { useRuleSystemStore } from '../../ruleSystemStore'
 import { conceptsApi } from './api/conceptsApi'
 import { validateGraph } from './validateGraph'
@@ -237,9 +237,8 @@ export function CanvasPage() {
                         onChange={() => toggleNature(nature)}
                         className="accent-sky-500"
                       />
-                      <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${NATURE_COLORS[nature]}`}>
-                        {NATURE_LABELS[nature]}
-                      </span>
+                      <NatureSwatch nature={nature} />
+                      <span className="text-[10px]">{NATURE_LABELS[nature]}</span>
                     </label>
                   ))}
                 </div>

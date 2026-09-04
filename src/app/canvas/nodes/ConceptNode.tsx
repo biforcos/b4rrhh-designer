@@ -1,36 +1,46 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { type ConceptFlowNode, INPUT_PORTS, PORT_COLORS, PORT_LABEL_COLORS, TYPE_BADGE_COLORS } from '../types'
+import { cn } from '@/lib/utils'
+import { type ConceptFlowNode, INPUT_PORTS } from '../types'
+import { NATURE_LABELS, NATURE_COLORS, CALCULATION_TYPE_LABELS } from '../conceptLabels'
+
+// Sobre tinta la seleccion se marca en blanco, no en azul: el acento del
+// sistema es justo el color del fondo. El grado dice la distancia al nodo
+// seleccionado: pleno el propio y sus vecinos, medio el resto del camino.
+const FOCUS_RING = {
+  selected: 'outline-2 outline-offset-2 outline-text-inverse',
+  neighbor: 'outline-1 outline-offset-2 outline-text-inverse',
+  ancestor: 'outline-1 outline-offset-2 outline-ink-line-strong',
+}
 
 export function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
   const inputPorts = INPUT_PORTS[data.calculationType] ?? []
 
-  const borderClass = data.dimmed
-    ? 'border-slate-800'
-    : data.neighborHighlight
-    ? 'border-violet-500 shadow-lg shadow-violet-500/20'
-    : data.ancestorHighlight
-    ? 'border-indigo-600'
+  const focusClass = data.dimmed
+    ? ''
     : selected
-    ? 'border-sky-500 shadow-lg shadow-sky-500/20'
-    : 'border-slate-700'
+    ? FOCUS_RING.selected
+    : data.neighborHighlight
+    ? FOCUS_RING.neighbor
+    : data.ancestorHighlight
+    ? FOCUS_RING.ancestor
+    : ''
 
   return (
-    <div className={`
-      min-w-[120px] rounded-lg border bg-slate-900 text-xs transition-opacity duration-200
-      ${data.dimmed ? 'opacity-[0.12] pointer-events-none' : 'opacity-100'}
-      ${borderClass}
-      ${data.isDirty ? 'border-dashed' : ''}
-    `}>
+    <div className={cn(
+      'min-w-[140px] rounded-md border border-border-strong border-l-[3px] bg-surface-panel text-xs text-text-primary shadow-(--shadow-card) transition-opacity duration-200',
+      NATURE_COLORS[data.functionalNature],
+      data.dimmed ? 'opacity-[0.12] pointer-events-none' : 'opacity-100',
+      focusClass,
+      data.isDirty && 'border-dashed',
+    )}>
       {/* Header */}
-      <div className="px-2 py-1 rounded-t-lg bg-slate-800/60 flex items-center gap-1">
-        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex-1 ${TYPE_BADGE_COLORS[data.calculationType]}`}>
-          {data.calculationType === 'RATE_BY_QUANTITY' ? 'RATE×QTY' : data.calculationType.replace('_', ' ')}
-        </span>
+      <div className="flex items-start gap-1 px-2 pt-1.5">
+        <span className="flex-1 font-mono text-[11px] font-semibold leading-tight">{data.conceptCode}</span>
         {data.onEditSummary && (
           <button
             type="button"
             onClick={e => { e.stopPropagation(); data.onEditSummary!(data.conceptCode) }}
-            className="text-[9px] text-slate-500 hover:text-slate-300 px-0.5"
+            className="px-0.5 text-[9px] text-text-tertiary hover:text-text-primary"
             title="Editar summary"
           >
             ✎
@@ -39,41 +49,43 @@ export function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
       </div>
 
       {/* Body */}
-      <div className="px-2 pb-2 pt-1">
-        <div className="font-bold text-sm text-slate-100">{data.conceptCode}</div>
-        <div className="text-slate-500 text-[9px]">{data.conceptMnemonic}</div>
+      <div className="px-2 pb-2">
+        <div className="text-[9px] text-text-secondary">{data.conceptMnemonic}</div>
+        <div className="text-[9px] text-text-tertiary">
+          {NATURE_LABELS[data.functionalNature]} · {CALCULATION_TYPE_LABELS[data.calculationType]}
+        </div>
 
         {data.summary && (
-          <div className="text-slate-500 text-[9px] italic mt-0.5 line-clamp-2">{data.summary}</div>
+          <div className="mt-0.5 line-clamp-2 text-[9px] italic text-text-tertiary">{data.summary}</div>
         )}
 
-        {/* Input ports */}
+        {/* Puertos de entrada: un punto dice donde estan, el rotulo dice que son */}
         {inputPorts.length > 0 && (
           <div className="mt-1.5 flex flex-col gap-1">
             {inputPorts.map((port) => (
-              <div key={port} className="flex items-center gap-1 relative">
+              <div key={port} className="relative flex items-center gap-1">
                 <Handle
                   type="target"
                   position={Position.Left}
                   id={port}
                   title={port}
-                  className={`!w-2.5 !h-2.5 !border-2 !-left-3 ${PORT_COLORS[port]}`}
+                  className="!h-2 !w-2 !-left-[15px]"
                   style={{ top: 'auto', transform: 'none' }}
                 />
-                <span className={`text-[9px] font-medium ml-1 ${PORT_LABEL_COLORS[port]}`}>{port}</span>
+                <span className="ml-1 font-mono text-[9px] text-text-tertiary">{port}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* Output port */}
-        <div className="flex justify-end mt-1">
+        {/* Puerto de salida */}
+        <div className="mt-1 flex justify-end">
           <Handle
             type="source"
             position={Position.Right}
             id="out"
             title="out"
-            className={`!w-2.5 !h-2.5 !border-2 !-right-3 ${PORT_COLORS['out']}`}
+            className="!h-2 !w-2 !-right-[13px]"
             style={{ top: 'auto', transform: 'none' }}
           />
         </div>

@@ -36,37 +36,3 @@ export const INPUT_PORTS: Record<CalculationType, string[]> = {
   GREATEST:         ['left', 'right'],
   LEAST:            ['left', 'right'],
 }
-
-export const PORT_COLORS: Record<string, string> = {
-  qty:   'border-sky-400 bg-sky-950',
-  rate:  'border-amber-400 bg-amber-950',
-  base:  'border-violet-400 bg-violet-950',
-  pct:   'border-pink-400 bg-pink-950',
-  feed:  'border-green-400 bg-green-950',
-  left:  'border-orange-400 bg-orange-950',
-  right: 'border-orange-400 bg-orange-950',
-  out:   'border-slate-400 bg-slate-700',
-}
-
-export const PORT_LABEL_COLORS: Record<string, string> = {
-  qty:   'text-sky-400',
-  rate:  'text-amber-400',
-  base:  'text-violet-400',
-  pct:   'text-pink-400',
-  feed:  'text-green-400',
-  left:  'text-orange-400',
-  right: 'text-orange-400',
-  out:   'text-slate-400',
-}
-
-export const TYPE_BADGE_COLORS: Record<CalculationType, string> = {
-  DIRECT_AMOUNT:    'bg-slate-800 text-slate-400',
-  JAVA_PROVIDED:    'bg-slate-800 text-slate-400',
-  ENGINE_PROVIDED:  'bg-slate-800 text-slate-400',
-  EMPLOYEE_INPUT:   'bg-teal-950 text-teal-400',
-  RATE_BY_QUANTITY: 'bg-sky-950 text-sky-400',
-  PERCENTAGE:       'bg-violet-950 text-violet-400',
-  AGGREGATE:        'bg-green-950 text-green-400',
-  GREATEST:         'bg-orange-950 text-orange-400',
-  LEAST:            'bg-orange-950 text-orange-400',
-}
