@@ -47,6 +47,10 @@ jobs:
           # 'vite build', y es lo unico que comprueba tipos. 'npm run dev' no lo
           # hace, asi que sin esto los errores de tipos se acumulan sin que nadie
           # se entere — que es exactamente lo que habia pasado.
+          #
+          # lint:colors es el candado del sistema de color (#2): tumba el build
+          # si vuelve a colarse una clase de la paleta de Tailwind
+          # (text-slate-400, bg-sky-950...) en src/.
           docker create \
             --name "${{ env.NODE }}" \
             --cpus 5 \
@@ -56,7 +60,7 @@ jobs:
             -v b4rrhh-npm:/root/.npm \
             -w /app \
             node:22-alpine \
-            sh -c "npm ci && npm run build && npm test"
+            sh -c "npm ci && npm run lint:colors && npm run build && npm test"
 
           # El "/." copia el CONTENIDO: docker create -w /app ya ha creado /app,
           # y sin el la carpeta entraria dentro (/app/designer/...).
