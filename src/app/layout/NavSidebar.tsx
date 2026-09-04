@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Network, List, ClipboardList, LogOut } from 'lucide-react'
-import { authStore } from '../../auth/authStore'
+import { Network, List, ClipboardList, LogIn } from 'lucide-react'
 import { ruleSystemsApi } from '../../api/ruleSystemsApi'
 import { useRuleSystemStore } from '../../ruleSystemStore'
+import { BACKOFFICE_HOME } from '../../routes'
 
 const NAV_ITEMS = [
   { to: '/canvas', icon: Network, label: 'Canvas' },
@@ -13,7 +13,6 @@ const NAV_ITEMS = [
 ]
 
 export function NavSidebar() {
-  const navigate = useNavigate()
   const { ruleSystemCode, setRuleSystemCode } = useRuleSystemStore()
   const [popoverOpen, setPopoverOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -42,11 +41,6 @@ export function NavSidebar() {
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [popoverOpen])
-
-  function handleLogout() {
-    authStore.clear()
-    navigate('/login', { replace: true })
-  }
 
   return (
     <nav className="w-11 bg-surface-panel border-r border-border-default flex flex-col items-center py-3 gap-1 flex-shrink-0">
@@ -98,13 +92,15 @@ export function NavSidebar() {
         </NavLink>
       ))}
       <div className="flex-1" />
+      {/* Vuelve al backoffice, no cierra sesion: la sesion es compartida y
+          cerrarla desde aqui tumbaria la pestaña de al lado. Ver routes.ts. */}
       <button
         type="button"
-        onClick={handleLogout}
-        title={`Cerrar sesión (${authStore.getSubject() ?? ''})`}
-        className="w-8 h-8 rounded-md flex items-center justify-center text-text-tertiary hover:text-error-text hover:bg-surface-hover transition-colors"
+        onClick={() => window.location.assign(BACKOFFICE_HOME)}
+        title="Volver al backoffice"
+        className="w-8 h-8 rounded-md flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors"
       >
-        <LogOut size={16} />
+        <LogIn size={16} className="-scale-x-100" />
       </button>
     </nav>
   )

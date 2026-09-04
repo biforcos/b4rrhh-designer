@@ -31,6 +31,45 @@ afterEach(() => {
   useRuleSystemStore.setState({ ruleSystemCode: 'ESP' })
 })
 
+describe('boton de abajo del rail', () => {
+  const assign = vi.fn()
+  const realLocation = window.location
+
+  beforeEach(() => {
+    // jsdom no implementa la navegacion real; se sustituye solo `assign`.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...realLocation, assign },
+    })
+    localStorage.setItem('b4rrhh.auth.session', JSON.stringify({
+      token: 't', subject: 'bifor', expiresAt: '2099-01-01T00:00:00Z',
+    }))
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    localStorage.clear()
+    assign.mockReset()
+  })
+
+  it('vuelve al backoffice sin tocar la sesion compartida', async () => {
+    wrap(<NavSidebar />)
+    await waitFor(() => screen.getByTitle('Rule system: ESP'))
+
+    fireEvent.click(screen.getByTitle('Volver al backoffice'))
+
+    expect(assign).toHaveBeenCalledWith('/')
+    expect(localStorage.getItem('b4rrhh.auth.session')).not.toBeNull()
+  })
+
+  it('ya no ofrece cerrar sesion', async () => {
+    wrap(<NavSidebar />)
+    await waitFor(() => screen.getByTitle('Rule system: ESP'))
+
+    expect(screen.queryByTitle(/Cerrar sesión/)).not.toBeInTheDocument()
+  })
+})
+
 it('shows current rule system code as badge', async () => {
   wrap(<NavSidebar />)
   await waitFor(() => expect(screen.getByTitle('Rule system: ESP')).toBeInTheDocument())

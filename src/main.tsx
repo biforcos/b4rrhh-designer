@@ -8,6 +8,7 @@ import { ObjectsPage } from './app/objects/ObjectsPage'
 import { AssignmentsPage } from './app/assignments/AssignmentsPage'
 import { LoginPage } from './auth/LoginPage'
 import { RequireAuth } from './auth/RequireAuth'
+import { DESIGNER_BASENAME } from './routes'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -15,7 +16,7 @@ const queryClient = new QueryClient()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/designer">
+      <BrowserRouter basename={DESIGNER_BASENAME}>
         <Routes>
           <Route path="login" element={<LoginPage />} />
           <Route element={<RequireAuth />}>
