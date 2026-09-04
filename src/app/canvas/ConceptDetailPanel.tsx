@@ -68,13 +68,13 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
 
   return (
     <TooltipProvider delay={300}>
-      <aside className="w-56 bg-slate-900 border-l border-slate-800 p-3 text-xs flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
+      <aside className="w-56 bg-surface-panel border-l border-border-default p-3 text-xs text-text-primary flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
 
         {/* Header */}
         <div>
-          <div className="font-bold text-sky-400 text-sm leading-tight">{d.conceptCode}</div>
-          <div className="text-slate-400 text-[10px] mt-0.5">{d.conceptMnemonic}</div>
-          <div className="text-slate-600 text-[9px] mt-0.5 uppercase tracking-wide">PayrollConcept</div>
+          <div className="font-mono font-semibold text-text-primary text-sm leading-tight">{d.conceptCode}</div>
+          <div className="text-text-secondary text-[10px] mt-0.5">{d.conceptMnemonic}</div>
+          <div className="text-text-tertiary text-[9px] mt-0.5 uppercase tracking-wide">PayrollConcept</div>
         </div>
 
         {/* Section: cálculo */}
@@ -121,7 +121,7 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
         <section className="space-y-1.5">
           <SectionHeader label="Summary" />
           <textarea
-            className="w-full bg-slate-950 border border-slate-700 text-slate-300 text-[10px] rounded px-1.5 py-1 resize-none focus:outline-none focus:border-sky-600"
+            className="w-full bg-surface-panel border border-border-default text-text-primary placeholder:text-text-tertiary text-[10px] rounded-sm px-1.5 py-1 resize-none focus:outline-none focus:border-accent-border focus:shadow-(--focus-ring)"
             rows={3}
             value={summaryDraft}
             onChange={e => setSummaryDraft(e.target.value)}
@@ -133,14 +133,14 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
                 type="button"
                 disabled={summaryMutation.isPending}
                 onClick={() => summaryMutation.mutate(summaryDraft.trim() || null)}
-                className="flex-1 text-[9px] bg-sky-900 border border-sky-700 text-sky-300 rounded px-2 py-0.5 hover:bg-sky-800 disabled:opacity-50"
+                className="flex-1 text-[9px] bg-accent-primary border border-accent-primary text-text-inverse rounded-sm px-2 py-0.5 hover:bg-accent-primary-hover disabled:opacity-50"
               >
                 {summaryMutation.isPending ? 'Guardando...' : 'Guardar'}
               </button>
               <button
                 type="button"
                 onClick={() => setSummaryDraft(node.data.summary ?? '')}
-                className="text-[9px] border border-slate-700 text-slate-400 rounded px-2 py-0.5 hover:bg-slate-800"
+                className="text-[9px] border border-border-default text-text-secondary rounded-sm px-2 py-0.5 hover:bg-surface-hover"
               >
                 ✕
               </button>
@@ -149,19 +149,19 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
         </section>
 
         {/* Delete */}
-        <div className="mt-auto pt-2 border-t border-slate-800">
+        <div className="mt-auto pt-2 border-t border-border-default">
           {!confirmDelete ? (
             <div>
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
                 disabled={hasDependents || isPending}
-                className="w-full text-[10px] border border-red-900 text-red-400 rounded px-2 py-1 hover:enabled:bg-red-950 disabled:border-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed"
+                className="w-full text-[10px] border border-error-border text-error-text rounded-sm px-2 py-1 hover:enabled:bg-error-bg disabled:border-border-default disabled:text-text-tertiary disabled:cursor-not-allowed"
               >
                 🗑 Borrar concepto
               </button>
               {hasDependents && (
-                <p className="text-slate-600 text-[9px] text-center mt-1">
+                <p className="text-text-tertiary text-[9px] text-center mt-1">
                   Usado por {dependentCount} {dependentCount === 1 ? 'concepto' : 'conceptos'}
                 </p>
               )}
@@ -172,7 +172,7 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={isPending}
-                className="w-full text-[10px] bg-red-900 border border-red-700 text-red-200 rounded px-2 py-1 hover:bg-red-800 disabled:opacity-50"
+                className="w-full text-[10px] bg-error-bg border border-error-border text-error-text rounded-sm px-2 py-1 hover:border-error-text disabled:opacity-50"
               >
                 {isPending ? 'Borrando...' : '⚠ Confirmar borrado'}
               </button>
@@ -180,13 +180,13 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
                 type="button"
                 onClick={() => setConfirmDelete(false)}
                 disabled={isPending}
-                className="w-full text-[10px] border border-slate-700 text-slate-400 rounded px-2 py-1 hover:bg-slate-800"
+                className="w-full text-[10px] border border-border-default text-text-secondary rounded-sm px-2 py-1 hover:bg-surface-hover"
               >
                 Cancelar
               </button>
-              <p className="text-slate-600 text-[9px] text-center">Esta acción no se puede deshacer</p>
+              <p className="text-text-tertiary text-[9px] text-center">Esta acción no se puede deshacer</p>
               {isError && (
-                <p className="text-red-400 text-[9px] text-center">Error al borrar el concepto</p>
+                <p className="text-error-text text-[9px] text-center">Error al borrar el concepto</p>
               )}
             </div>
           )}
@@ -199,7 +199,7 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
 
 function SectionHeader({ label }: { label: string }) {
   return (
-    <div className="text-[9px] uppercase tracking-widest text-slate-500 font-semibold border-b border-slate-800 pb-1">
+    <div className="text-[9px] uppercase tracking-widest text-text-tertiary font-semibold border-b border-border-default pb-1">
       {label}
     </div>
   )
@@ -217,10 +217,10 @@ function Field({
   return (
     <div>
       <div className="flex items-center gap-1 mb-0.5">
-        <span className="text-slate-500 text-[9px] uppercase tracking-wide">{label}</span>
+        <span className="text-text-tertiary text-[9px] uppercase tracking-wide">{label}</span>
         <Tooltip>
           <TooltipTrigger
-            className="inline-flex items-center text-slate-600 hover:text-slate-400 cursor-help flex-shrink-0"
+            className="inline-flex items-center text-text-tertiary hover:text-text-secondary cursor-help flex-shrink-0"
             tabIndex={-1}
           >
             <HelpCircle size={10} />
@@ -231,8 +231,8 @@ function Field({
         </Tooltip>
       </div>
       {value != null
-        ? <div className="bg-slate-950 text-slate-300 px-1.5 py-0.5 rounded text-[10px]">{value}</div>
-        : <div className="bg-slate-950 text-slate-600 px-1.5 py-0.5 rounded text-[10px] italic">—</div>
+        ? <div className="bg-surface-raised text-text-primary px-1.5 py-0.5 rounded-sm text-[10px]">{value}</div>
+        : <div className="bg-surface-raised text-text-tertiary px-1.5 py-0.5 rounded-sm text-[10px] italic">—</div>
       }
     </div>
   )

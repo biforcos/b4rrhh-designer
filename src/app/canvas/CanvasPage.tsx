@@ -26,6 +26,17 @@ const edgeTypes = { deletable: DeletableEdge }
 
 const ALL_NATURES = Object.keys(NATURE_LABELS) as FunctionalNature[]
 
+// La barra de herramientas es una tira de papel apoyada sobre la tinta, no
+// botones sueltos: un solo borde y los botones separados por filetes.
+const TOOL = 'text-xs px-3 py-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+const TOOL_PRIMARY = 'text-xs px-3 py-1.5 font-semibold text-accent-primary hover:bg-surface-accent disabled:opacity-50'
+const TOOL_ACTIVE = 'text-xs px-3 py-1.5 bg-surface-accent text-accent-primary'
+
+const BUTTON = 'text-xs px-3 py-1.5 rounded-md border border-border-default bg-surface-panel text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+const BUTTON_PRIMARY = 'text-xs px-3 py-1.5 rounded-md border border-accent-primary bg-accent-primary text-text-inverse hover:bg-accent-primary-hover disabled:opacity-50'
+const BUTTON_WARNING = 'text-xs px-3 py-1.5 rounded-md border border-warning-border bg-warning-bg text-warning-text hover:border-warning-strong'
+const MODAL = 'fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface-panel border border-border-default rounded-lg shadow-(--shadow-panel) p-4'
+
 export function CanvasPage() {
   const { ruleSystemCode } = useRuleSystemStore()
   const queryClient = useQueryClient()
@@ -162,17 +173,17 @@ export function CanvasPage() {
     })
   }, [edges, selectedNode, focusedEdgeIds, ancestorEdgeIds])
 
-  if (isLoading) return <div className="flex items-center justify-center h-full text-slate-500">Cargando grafo...</div>
+  if (isLoading) return <div className="flex items-center justify-center h-full text-text-tertiary">Cargando grafo...</div>
 
   return (
     <div className="flex h-full">
       <div className="flex-1 relative">
         {/* Toolbar */}
-        <div className="absolute top-2 right-2 z-10 flex gap-2 items-start">
+        <div className="absolute top-2 right-2 z-10 flex items-stretch rounded-md border border-border-default bg-surface-panel shadow-(--shadow-card) divide-x divide-border-default">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-md hover:bg-slate-700"
+            className={`${TOOL} rounded-l-md`}
           >
             + Concepto
           </button>
@@ -180,21 +191,21 @@ export function CanvasPage() {
             type="button"
             onClick={handleSave}
             disabled={saveGraph.isPending}
-            className="text-xs px-3 py-1.5 bg-green-900 border border-green-700 text-green-300 rounded-md hover:bg-green-800 disabled:opacity-50"
+            className={TOOL_PRIMARY}
           >
             {saveGraph.isPending ? 'Guardando...' : '↑ Guardar'}
           </button>
           <button
             type="button"
             onClick={() => rfInstance?.fitView({ duration: 400, padding: 0.1 })}
-            className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-md hover:bg-slate-700"
+            className={TOOL}
           >
             ⊡ Fit
           </button>
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-md hover:bg-slate-700"
+            className={TOOL}
           >
             ⌕ Buscar
           </button>
@@ -204,23 +215,19 @@ export function CanvasPage() {
             <button
               type="button"
               onClick={() => setFilterOpen(o => !o)}
-              className={`text-xs px-3 py-1.5 border rounded-md transition-colors ${
-                filterNatures.size > 0
-                  ? 'bg-sky-900 border-sky-700 text-sky-300 hover:bg-sky-800'
-                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-              }`}
+              className={`${filterNatures.size > 0 ? TOOL_ACTIVE : TOOL} rounded-r-md transition-colors`}
             >
               Filtro {filterNatures.size > 0 ? `(${filterNatures.size})` : '▾'}
             </button>
             {filterOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-lg p-2 w-48 z-20 shadow-xl">
+              <div className="absolute right-0 top-full mt-1 bg-surface-panel border border-border-default rounded-md p-2 w-48 z-20 shadow-(--shadow-panel)">
                 <div className="flex justify-between items-center mb-2 px-1">
-                  <span className="text-[9px] text-slate-500 uppercase tracking-wide">Naturaleza</span>
+                  <span className="text-[9px] text-text-tertiary uppercase tracking-wide">Naturaleza</span>
                   {filterNatures.size > 0 && (
                     <button
                       type="button"
                       onClick={() => setFilterNatures(new Set())}
-                      className="text-[9px] text-slate-500 hover:text-slate-300"
+                      className="text-[9px] text-text-tertiary hover:text-text-primary"
                     >
                       Limpiar
                     </button>
@@ -228,12 +235,12 @@ export function CanvasPage() {
                 </div>
                 <div className="space-y-0.5">
                   {ALL_NATURES.map(nature => (
-                    <label key={nature} className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-slate-800 cursor-pointer">
+                    <label key={nature} className="flex items-center gap-2 px-1 py-0.5 rounded-sm hover:bg-surface-hover cursor-pointer text-text-primary">
                       <input
                         type="checkbox"
                         checked={filterNatures.has(nature)}
                         onChange={() => toggleNature(nature)}
-                        className="accent-sky-500"
+                        className="accent-accent-primary"
                       />
                       <NatureSwatch nature={nature} />
                       <span className="text-[10px]">{NATURE_LABELS[nature]}</span>
@@ -285,18 +292,18 @@ export function CanvasPage() {
 
       {pendingSave && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setPendingSave(null)} />
-          <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4">
-            <p className="text-sm font-medium text-slate-200 mb-3">Validación del grafo</p>
+          <div className="fixed inset-0 z-50 bg-surface-overlay" onClick={() => setPendingSave(null)} />
+          <div className={`${MODAL} w-[420px]`}>
+            <p className="text-sm font-medium text-text-primary mb-3">Validación del grafo</p>
 
             {pendingSave.validation.errors.length > 0 && (
               <div className="mb-3">
-                <p className="text-[10px] uppercase tracking-wide text-red-400 font-semibold mb-1.5">
+                <p className="text-[10px] uppercase tracking-wide text-error-text font-semibold mb-1.5">
                   Errores — el grafo no se puede guardar
                 </p>
                 <ul className="space-y-1">
                   {pendingSave.validation.errors.map((e, i) => (
-                    <li key={i} className="text-xs text-red-300 bg-red-950/40 border border-red-900 rounded px-2 py-1">
+                    <li key={i} className="text-xs text-error-text bg-error-bg border border-error-border rounded-sm px-2 py-1">
                       {e}
                     </li>
                   ))}
@@ -306,12 +313,12 @@ export function CanvasPage() {
 
             {pendingSave.validation.warnings.length > 0 && (
               <div className="mb-3">
-                <p className="text-[10px] uppercase tracking-wide text-amber-400 font-semibold mb-1.5">
+                <p className="text-[10px] uppercase tracking-wide text-warning-text font-semibold mb-1.5">
                   Avisos
                 </p>
                 <ul className="space-y-1">
                   {pendingSave.validation.warnings.map((w, i) => (
-                    <li key={i} className="text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded px-2 py-1">
+                    <li key={i} className="text-xs text-warning-text bg-warning-bg border border-warning-border rounded-sm px-2 py-1">
                       {w}
                     </li>
                   ))}
@@ -323,7 +330,7 @@ export function CanvasPage() {
               <button
                 type="button"
                 onClick={() => setPendingSave(null)}
-                className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-md hover:bg-slate-700"
+                className={BUTTON}
               >
                 Cancelar
               </button>
@@ -334,7 +341,7 @@ export function CanvasPage() {
                     saveGraph.mutate({ nodes: pendingSave.nodes, edges: pendingSave.edges })
                     setPendingSave(null)
                   }}
-                  className="text-xs px-3 py-1.5 bg-amber-800 border border-amber-700 text-amber-200 rounded-md hover:bg-amber-700"
+                  className={BUTTON_WARNING}
                 >
                   Guardar igualmente
                 </button>
@@ -346,13 +353,13 @@ export function CanvasPage() {
 
       {summaryEditTarget && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setSummaryEditTarget(null)} />
-          <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4">
-            <p className="text-xs text-slate-400 mb-1">
-              Summary — <span className="font-mono text-slate-300">{summaryEditTarget}</span>
+          <div className="fixed inset-0 z-50 bg-surface-overlay" onClick={() => setSummaryEditTarget(null)} />
+          <div className={`${MODAL} w-96`}>
+            <p className="text-xs text-text-secondary mb-1">
+              Summary — <span className="font-mono text-text-primary">{summaryEditTarget}</span>
             </p>
             <textarea
-              className="w-full bg-slate-800 border border-slate-700 rounded-md text-xs text-slate-200 p-2 resize-none focus:outline-none focus:border-sky-500"
+              className="w-full bg-surface-panel border border-border-default rounded-md text-xs text-text-primary placeholder:text-text-tertiary p-2 resize-none focus:outline-none focus:border-accent-border focus:shadow-(--focus-ring)"
               rows={4}
               value={summaryDraft}
               onChange={e => setSummaryDraft(e.target.value)}
@@ -363,7 +370,7 @@ export function CanvasPage() {
               <button
                 type="button"
                 onClick={() => setSummaryEditTarget(null)}
-                className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-md hover:bg-slate-700"
+                className={BUTTON}
               >
                 Cancelar
               </button>
@@ -374,7 +381,7 @@ export function CanvasPage() {
                   conceptCode: summaryEditTarget,
                   summary: summaryDraft.trim() || null,
                 })}
-                className="text-xs px-3 py-1.5 bg-sky-900 border border-sky-700 text-sky-300 rounded-md hover:bg-sky-800 disabled:opacity-50"
+                className={BUTTON_PRIMARY}
               >
                 {updateSummaryMutation.isPending ? 'Guardando...' : 'Guardar'}
               </button>
