@@ -33,7 +33,18 @@ export function ConceptNode({ data, selected }: NodeProps<ConceptFlowNode>) {
       focusClass,
       data.isDirty && 'border-dashed',
     )}>
-      {/* Header */}
+      {/*
+        La linea de identidad del nodo es el CODIGO del concepto (701, D02,
+        B01): la business key con la que se le nombra en operandos, feeds,
+        rutas de la API y seeds. El mnemonico (FP_TRABAJADOR) va debajo y en
+        pequeno porque describe, no identifica: es largo, no se lee a zoom
+        0,5 y dos conceptos pueden parecerse por el nombre.
+
+        No es el orden en recibo aunque lo parezca: en el seed de ESP el
+        codigo y el orden coinciden en las lineas del recibo (701/701), pero
+        los tecnicos (D02, B_CC, P_FP_TRAB) no tienen orden y siguen
+        mostrando su codigo. Decidido en designer#4; no invertir las lineas.
+      */}
       <div className="flex items-start gap-1 px-2 pt-1.5">
         <span className="flex-1 font-mono text-[11px] font-semibold leading-tight">{data.conceptCode}</span>
         {data.onEditSummary && (
