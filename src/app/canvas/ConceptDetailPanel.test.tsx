@@ -57,6 +57,23 @@ describe('ConceptDetailPanel', () => {
     expect(screen.getByText('100')).toBeInTheDocument()
   })
 
+  it('pinta los valores de sólo lectura sin caja y los códigos en monoespaciada', () => {
+    wrap(
+      <ConceptDetailPanel
+        node={makeNode({ payslipOrderCode: '100' })}
+        edges={[]}
+        ruleSystemCode="ESP"
+        onDeleted={() => {}}
+      />
+    )
+    for (const value of ['RATE_BY_QUANTITY', '100', 'Devengo', 'Acumula', 'Segmento']) {
+      expect(screen.getByText(value)).not.toHaveClass('bg-surface-raised')
+    }
+    expect(screen.getByText('RATE_BY_QUANTITY')).toHaveClass('font-mono')
+    expect(screen.getByText('100')).toHaveClass('font-mono')
+    expect(screen.getByText('Devengo')).not.toHaveClass('font-mono')
+  })
+
   it('muestra "—" cuando payslipOrderCode es null', () => {
     wrap(
       <ConceptDetailPanel node={makeNode()} edges={[]} ruleSystemCode="ESP" onDeleted={() => {}} />

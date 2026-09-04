@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HelpCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { conceptsApi } from './api/conceptsApi'
 import { NATURE_LABELS, COMPOSITION_LABELS, SCOPE_LABELS } from './conceptLabels'
 import {
@@ -84,6 +85,7 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
             label="Tipo de cálculo"
             value={d.calculationType}
             tooltip={FIELD_TOOLTIPS.calculationType}
+            mono
           />
           <Field
             label="Ámbito"
@@ -109,6 +111,7 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
             label="Orden en recibo"
             value={d.payslipOrderCode}
             tooltip={FIELD_TOOLTIPS.payslipOrderCode}
+            mono
           />
           <Field
             label="Persiste resultado"
@@ -205,19 +208,25 @@ function SectionHeader({ label }: { label: string }) {
   )
 }
 
+// Un valor de solo lectura no va en caja: una caja tiene la forma de un
+// <input> e invita a hacer clic. Fila rotulo/valor, como en el lienzo; la
+// unica caja del panel es el textarea del summary, y asi se distingue de un
+// vistazo lo que se puede tocar de lo que no. Los codigos, en monoespaciada.
 function Field({
   label,
   value,
   tooltip,
+  mono = false,
 }: {
   label: string
   value: string | null | undefined
   tooltip: string
+  mono?: boolean
 }) {
   return (
-    <div>
-      <div className="flex items-center gap-1 mb-0.5">
-        <span className="text-text-tertiary text-[9px] uppercase tracking-wide">{label}</span>
+    <div className="flex items-center justify-between gap-2 text-[11px]">
+      <span className="flex items-center gap-1 shrink-0 text-text-secondary">
+        {label}
         <Tooltip>
           <TooltipTrigger
             className="inline-flex items-center text-text-tertiary hover:text-text-secondary cursor-help flex-shrink-0"
@@ -229,10 +238,10 @@ function Field({
             {tooltip}
           </TooltipContent>
         </Tooltip>
-      </div>
+      </span>
       {value != null
-        ? <div className="bg-surface-raised text-text-primary px-1.5 py-0.5 rounded-sm text-[10px]">{value}</div>
-        : <div className="bg-surface-raised text-text-tertiary px-1.5 py-0.5 rounded-sm text-[10px] italic">—</div>
+        ? <span className={cn('text-text-primary text-right', mono && 'font-mono')}>{value}</span>
+        : <span className="text-text-tertiary italic">—</span>
       }
     </div>
   )
