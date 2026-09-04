@@ -57,6 +57,13 @@ describe('ConceptDetailPanel', () => {
     expect(screen.getByText('100')).toBeInTheDocument()
   })
 
+  it('la cabecera son dos líneas: no muestra el tipo de entidad del metamodelo', () => {
+    wrap(
+      <ConceptDetailPanel node={makeNode()} edges={[]} ruleSystemCode="ESP" onDeleted={() => {}} />
+    )
+    expect(screen.queryByText(/payrollconcept/i)).not.toBeInTheDocument()
+  })
+
   it('pinta los valores de sólo lectura sin caja y los códigos en monoespaciada', () => {
     wrap(
       <ConceptDetailPanel

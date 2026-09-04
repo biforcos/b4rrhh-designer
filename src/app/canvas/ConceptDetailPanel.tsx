@@ -71,11 +71,11 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
     <TooltipProvider delay={300}>
       <aside className="w-56 bg-surface-panel border-l border-border-default p-3 text-xs text-text-primary flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
 
-        {/* Header */}
+        {/* Cabecera: codigo y nombre. El tipo de entidad del metamodelo
+            (PayrollConcept) no le dice nada a quien mira una nomina. */}
         <div>
           <div className="font-mono font-semibold text-text-primary text-sm leading-tight">{d.conceptCode}</div>
           <div className="text-text-secondary text-[10px] mt-0.5">{d.conceptMnemonic}</div>
-          <div className="text-text-tertiary text-[9px] mt-0.5 uppercase tracking-wide">PayrollConcept</div>
         </div>
 
         {/* Section: cálculo */}
