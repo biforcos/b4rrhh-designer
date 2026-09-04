@@ -49,8 +49,8 @@ export function NavSidebar() {
   }
 
   return (
-    <nav className="w-11 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3 gap-1 flex-shrink-0">
-      <div className="text-sky-400 text-lg font-bold mb-1">⬡</div>
+    <nav className="w-11 bg-surface-panel border-r border-border-default flex flex-col items-center py-3 gap-1 flex-shrink-0">
+      <div className="text-accent-primary text-lg font-bold mb-1">⬡</div>
 
       {/* Rule system badge */}
       <div ref={popoverRef} className="relative mb-2">
@@ -58,13 +58,13 @@ export function NavSidebar() {
           type="button"
           title={`Rule system: ${ruleSystemCode}`}
           onClick={() => setPopoverOpen(o => !o)}
-          className="w-8 h-6 rounded text-[9px] font-bold bg-sky-950 border border-sky-800 text-sky-300 hover:bg-sky-900 truncate px-1"
+          className="w-8 h-6 rounded-sm text-[9px] font-mono font-semibold bg-surface-accent border border-accent-border text-accent-primary hover:bg-accent-muted truncate px-1"
         >
           {ruleSystemCode}
         </button>
         {popoverOpen && (
-          <div className="absolute left-full top-0 ml-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 min-w-[160px]">
-            <div className="text-[9px] uppercase tracking-widest text-slate-500 px-3 pt-2 pb-1">
+          <div className="absolute left-full top-0 ml-2 bg-surface-panel border border-border-default rounded-md shadow-(--shadow-panel) z-50 min-w-[160px]">
+            <div className="text-[9px] uppercase tracking-widest text-text-tertiary px-3 pt-2 pb-1">
               Rule system
             </div>
             {ruleSystems.filter(rs => rs.active).map(rs => (
@@ -72,13 +72,13 @@ export function NavSidebar() {
                 key={rs.code}
                 type="button"
                 onClick={() => { setRuleSystemCode(rs.code); setPopoverOpen(false) }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-800 flex items-center gap-2 ${
-                  rs.code === ruleSystemCode ? 'text-sky-400' : 'text-slate-300'
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-surface-hover flex items-center gap-2 ${
+                  rs.code === ruleSystemCode ? 'text-accent-primary' : 'text-text-primary'
                 }`}
               >
-                <span className="font-mono text-[10px] text-slate-500 w-8 shrink-0">{rs.code}</span>
+                <span className="font-mono text-[10px] text-text-tertiary w-8 shrink-0">{rs.code}</span>
                 <span className="truncate">{rs.name}</span>
-                {rs.code === ruleSystemCode && <span className="ml-auto text-sky-500 text-[10px]">✓</span>}
+                {rs.code === ruleSystemCode && <span className="ml-auto text-accent-primary text-[10px]">✓</span>}
               </button>
             ))}
           </div>
@@ -91,7 +91,7 @@ export function NavSidebar() {
           to={to}
           title={label}
           className={({ isActive }) =>
-            `w-8 h-8 rounded-md flex items-center justify-center text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors ${isActive ? 'bg-sky-950 text-sky-400' : ''}`
+            `w-8 h-8 rounded-md flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors ${isActive ? 'bg-surface-accent text-accent-primary' : ''}`
           }
         >
           <Icon size={16} />
@@ -102,7 +102,7 @@ export function NavSidebar() {
         type="button"
         onClick={handleLogout}
         title={`Cerrar sesión (${authStore.getSubject() ?? ''})`}
-        className="w-8 h-8 rounded-md flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-slate-800 transition-colors"
+        className="w-8 h-8 rounded-md flex items-center justify-center text-text-tertiary hover:text-error-text hover:bg-surface-hover transition-colors"
       >
         <LogOut size={16} />
       </button>

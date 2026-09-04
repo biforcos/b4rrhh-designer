@@ -31,30 +31,30 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div className="min-h-screen bg-surface-app flex items-center justify-center">
       <div className="w-80">
         <div className="text-center mb-8">
-          <div className="text-sky-400 text-3xl mb-2">⬡</div>
-          <h1 className="text-slate-200 text-lg font-semibold">Payroll Designer</h1>
-          <p className="text-slate-500 text-xs mt-1">Entorno local — introduce tu usuario</p>
+          <div className="text-accent-primary text-3xl mb-2">⬡</div>
+          <h1 className="text-text-primary text-xl font-semibold">Payroll Designer</h1>
+          <p className="text-text-tertiary text-xs mt-1">Entorno local — introduce tu usuario</p>
         </div>
-        <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-surface-panel border border-border-default rounded-lg shadow-(--shadow-card) p-6 space-y-4">
           <div>
-            <label className="text-slate-400 text-xs block mb-1.5">Usuario</label>
+            <label className="text-text-secondary text-xs block mb-1.5">Usuario</label>
             <input
               type="text"
               value={subject}
               onChange={e => setSubject(e.target.value)}
               placeholder="bifor"
               autoFocus
-              className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-sky-600"
+              className="w-full bg-surface-panel border border-border-default rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-border focus:shadow-(--focus-ring)"
             />
           </div>
-          {error && <p className="text-red-400 text-xs">{error}</p>}
+          {error && <p className="text-error-text text-xs">{error}</p>}
           <button
             type="submit"
             disabled={loading || !subject.trim()}
-            className="w-full bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-md transition-colors"
+            className="w-full bg-accent-primary hover:bg-accent-primary-hover disabled:opacity-50 text-text-inverse text-sm font-semibold py-2 rounded-md transition-colors"
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
