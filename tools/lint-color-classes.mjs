@@ -7,7 +7,11 @@
 //
 //   npm run lint:colors
 //
-// Es el complemento de lint:styles (stylelint, color-no-hex), que solo ve CSS.
+// No hay un stylelint (color-no-hex) al lado, a proposito: el unico CSS del
+// proyecto es src/index.css, y ese es justo el fichero donde los hex son
+// legitimos (la costura con los tokens del producto). Una regla que lo ignore
+// no vigila nada. El dia que aparezca un segundo .css se anade stylelint sin
+// ignoreFiles y con index.css como unica excepcion (designer#5).
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
