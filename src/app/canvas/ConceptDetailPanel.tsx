@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { conceptsApi } from './api/conceptsApi'
-import { NATURE_LABELS, COMPOSITION_LABELS, SCOPE_LABELS } from './conceptLabels'
+import { NATURE_LABELS, SCOPE_LABELS } from './conceptLabels'
 import {
   Tooltip,
   TooltipTrigger,
@@ -22,10 +22,8 @@ interface Props {
 const FIELD_TOOLTIPS = {
   calculationType: 'Define cómo se calcula el valor del concepto. DIRECT_AMOUNT: toma el valor de una fuente única (tabla, constante u otro concepto). RATE_BY_QUANTITY: multiplica cantidad × tasa. AGGREGATE: suma varios conceptos. PERCENTAGE: aplica un porcentaje sobre una base. EMPLOYEE_INPUT: valor introducido manualmente por nóminas. ENGINE_PROVIDED: calculado por un componente técnico del motor.',
   functionalNature: 'Papel que juega el concepto en la nómina. Los devengos suman al bruto; las deducciones restan; las bases son valores de referencia; los totales y el líquido son conceptos derivados de cierre.',
-  resultCompositionMode: 'Cómo se combina el resultado cuando hay múltiples tramos de jornada en el período. REPLACE conserva el valor del último tramo (útil para tasas o porcentajes); ACCUMULATE suma el valor de todos los tramos (útil para importes proporcionales a días).',
   executionScope: 'Momento de evaluación dentro del ciclo de cálculo. SEGMENTO: el concepto se evalúa una vez por cada tramo de jornada laboral del período. PERÍODO: se evalúa una única vez para todo el período, independientemente del número de tramos.',
   payslipOrderCode: 'Posición visual en el recibo de salario. Los conceptos se muestran en orden numérico ascendente. Un concepto sin orden no aparece en el recibo.',
-  persistToConcepts: 'Indica si el resultado calculado se persiste en la tabla de conceptos del período. Desactivado en conceptos técnicos o intermedios que no necesitan trazabilidad individual.',
 } as const
 
 export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: Props) {
@@ -92,11 +90,6 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
             value={SCOPE_LABELS[d.executionScope]}
             tooltip={FIELD_TOOLTIPS.executionScope}
           />
-          <Field
-            label="Composición"
-            value={COMPOSITION_LABELS[d.resultCompositionMode]}
-            tooltip={FIELD_TOOLTIPS.resultCompositionMode}
-          />
         </section>
 
         {/* Section: nómina */}
@@ -112,11 +105,6 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
             value={d.payslipOrderCode}
             tooltip={FIELD_TOOLTIPS.payslipOrderCode}
             mono
-          />
-          <Field
-            label="Persiste resultado"
-            value={d.persistToConcepts ? 'Sí' : 'No'}
-            tooltip={FIELD_TOOLTIPS.persistToConcepts}
           />
         </section>
 

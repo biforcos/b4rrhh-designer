@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { conceptsApi } from './api/conceptsApi'
 import { loadPositions } from './graphPositions'
-import type { ConceptFlowNode, ConceptFlowEdge, CalculationType, FunctionalNature, ResultCompositionMode, ExecutionScope } from './types'
+import type { ConceptFlowNode, ConceptFlowEdge, CalculationType, FunctionalNature, ExecutionScope } from './types'
 
 const GRID_COLS = 4
 const NODE_WIDTH = 160
@@ -45,10 +45,8 @@ export function useConceptGraph(ruleSystemCode: string) {
           conceptMnemonic: c.conceptMnemonic,
           calculationType: c.calculationType as CalculationType,
           functionalNature: c.functionalNature as FunctionalNature,
-          resultCompositionMode: c.resultCompositionMode as ResultCompositionMode,
           executionScope: c.executionScope as ExecutionScope,
           payslipOrderCode: c.payslipOrderCode ?? null,
-          persistToConcepts: c.persistToConcepts,
           summary: c.summary ?? null,
         },
       }))

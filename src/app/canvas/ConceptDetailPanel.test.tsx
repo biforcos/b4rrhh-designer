@@ -21,7 +21,6 @@ function makeNode(overrides: Partial<ConceptFlowNode['data']> = {}): ConceptFlow
       conceptMnemonic: 'SALARIO_BASE',
       calculationType: 'RATE_BY_QUANTITY',
       functionalNature: 'EARNING',
-      resultCompositionMode: 'ACCUMULATE',
       executionScope: 'SEGMENT',
       payslipOrderCode: null,
       ...overrides,
@@ -52,7 +51,6 @@ describe('ConceptDetailPanel', () => {
     expect(screen.getByText('SALARIO_BASE')).toBeInTheDocument()
     expect(screen.getByText('RATE_BY_QUANTITY')).toBeInTheDocument()
     expect(screen.getByText('Devengo')).toBeInTheDocument()
-    expect(screen.getByText('Acumula')).toBeInTheDocument()
     expect(screen.getByText('Segmento')).toBeInTheDocument()
     expect(screen.getByText('100')).toBeInTheDocument()
   })
@@ -64,6 +62,14 @@ describe('ConceptDetailPanel', () => {
     expect(screen.queryByText(/payrollconcept/i)).not.toBeInTheDocument()
   })
 
+  it('no pinta composición ni persistencia del resultado: ya no gobiernan nada (ADR-058)', () => {
+    wrap(
+      <ConceptDetailPanel node={makeNode()} edges={[]} ruleSystemCode="ESP" onDeleted={() => {}} />
+    )
+    expect(screen.queryByText('Composición')).not.toBeInTheDocument()
+    expect(screen.queryByText('Persiste resultado')).not.toBeInTheDocument()
+  })
+
   it('pinta los valores de sólo lectura sin caja y los códigos en monoespaciada', () => {
     wrap(
       <ConceptDetailPanel
@@ -73,7 +79,7 @@ describe('ConceptDetailPanel', () => {
         onDeleted={() => {}}
       />
     )
-    for (const value of ['RATE_BY_QUANTITY', '100', 'Devengo', 'Acumula', 'Segmento']) {
+    for (const value of ['RATE_BY_QUANTITY', '100', 'Devengo', 'Segmento']) {
       expect(screen.getByText(value)).not.toHaveClass('bg-surface-raised')
     }
     expect(screen.getByText('RATE_BY_QUANTITY')).toHaveClass('font-mono')

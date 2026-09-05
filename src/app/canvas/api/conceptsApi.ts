@@ -6,10 +6,8 @@ export interface ConceptDto {
   conceptMnemonic: string
   calculationType: string
   functionalNature: string
-  resultCompositionMode: string
   executionScope: string
   payslipOrderCode: string | null
-  persistToConcepts: boolean
   summary: string | null
 }
 

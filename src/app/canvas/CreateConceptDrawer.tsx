@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { conceptsApi } from './api/conceptsApi'
-import { NATURE_LABELS, COMPOSITION_LABELS, SCOPE_LABELS } from './conceptLabels'
+import { NATURE_LABELS, SCOPE_LABELS } from './conceptLabels'
 
 interface Props { open: boolean; onClose: () => void; ruleSystemCode: string }
 
@@ -16,10 +16,8 @@ export function CreateConceptDrawer({ open, onClose, ruleSystemCode }: Props) {
     conceptMnemonic: '',
     calculationType: 'RATE_BY_QUANTITY',
     functionalNature: 'EARNING',
-    resultCompositionMode: 'ACCUMULATE',
     executionScope: 'SEGMENT',
     payslipOrderCode: '',
-    persistToConcepts: true,
     summary: '',
   })
 
@@ -89,19 +87,6 @@ export function CreateConceptDrawer({ open, onClose, ruleSystemCode }: Props) {
             </Select>
           </div>
           <div>
-            <Label className="text-text-secondary">Composición de resultado</Label>
-            <Select value={form.resultCompositionMode} onValueChange={v => { if (v) setForm(f => ({ ...f, resultCompositionMode: v })) }}>
-              <SelectTrigger className="w-full mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.entries(COMPOSITION_LABELS) as [keyof typeof COMPOSITION_LABELS, string][]).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
             <Label className="text-text-secondary">Ámbito de ejecución</Label>
             <Select value={form.executionScope} onValueChange={v => { if (v) setForm(f => ({ ...f, executionScope: v })) }}>
               <SelectTrigger className="w-full mt-1">
@@ -113,17 +98,6 @@ export function CreateConceptDrawer({ open, onClose, ruleSystemCode }: Props) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              id="persistToConcepts"
-              type="checkbox"
-              checked={form.persistToConcepts}
-              onChange={e => setForm(f => ({ ...f, persistToConcepts: e.target.checked }))}
-              title="Persistir resultado"
-              className="accent-accent-primary h-3.5 w-3.5"
-            />
-            <Label htmlFor="persistToConcepts" className="text-text-secondary cursor-pointer">Persistir resultado</Label>
           </div>
           <div>
             <Label className="text-text-secondary">Orden nómina (opcional)</Label>

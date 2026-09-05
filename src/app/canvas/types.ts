@@ -2,7 +2,6 @@ import type { Node, Edge } from '@xyflow/react'
 
 export type CalculationType = 'DIRECT_AMOUNT' | 'RATE_BY_QUANTITY' | 'PERCENTAGE' | 'AGGREGATE' | 'JAVA_PROVIDED' | 'ENGINE_PROVIDED' | 'EMPLOYEE_INPUT' | 'GREATEST' | 'LEAST'
 export type FunctionalNature = 'EARNING' | 'DEDUCTION' | 'BASE' | 'INFORMATIONAL' | 'TECHNICAL' | 'TOTAL_EARNING' | 'TOTAL_DEDUCTION' | 'NET_PAY'
-export type ResultCompositionMode = 'REPLACE' | 'ACCUMULATE'
 export type ExecutionScope = 'SEGMENT' | 'PERIOD'
 
 export interface ConceptNodeData extends Record<string, unknown> {
@@ -10,10 +9,8 @@ export interface ConceptNodeData extends Record<string, unknown> {
   conceptMnemonic: string
   calculationType: CalculationType
   functionalNature: FunctionalNature
-  resultCompositionMode: ResultCompositionMode
   executionScope: ExecutionScope
   payslipOrderCode: string | null
-  persistToConcepts: boolean
   summary: string | null
   isDirty?: boolean
   onEditSummary?: (conceptCode: string) => void

@@ -13,10 +13,8 @@ function node(id: string, code: string, mnemonic: string): ConceptFlowNode {
       conceptMnemonic: mnemonic,
       calculationType: 'DIRECT_AMOUNT',
       functionalNature: 'EARNING',
-      resultCompositionMode: 'REPLACE',
       executionScope: 'SEGMENT',
       payslipOrderCode: null,
-      persistToConcepts: false,
       summary: null,
     },
   }

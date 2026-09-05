@@ -78,8 +78,8 @@ beforeEach(() => {
     {
       ruleSystemCode: 'ESP', conceptCode: 'SALBASE', conceptMnemonic: 'SAL_BASE',
       calculationType: 'DIRECT_AMOUNT', functionalNature: 'EARNING',
-      resultCompositionMode: 'REPLACE', executionScope: 'PERIOD',
-      payslipOrderCode: null, persistToConcepts: true, summary: null,
+      executionScope: 'PERIOD',
+      payslipOrderCode: null, summary: null,
     },
   ])
   vi.mocked(assignmentsApi.create).mockResolvedValue({

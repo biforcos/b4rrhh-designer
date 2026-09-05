@@ -12,10 +12,8 @@ function node(id: string, calculationType: string): ConceptFlowNode {
       conceptMnemonic: id,
       calculationType: calculationType as never,
       functionalNature: 'EARNING',
-      resultCompositionMode: 'ACCUMULATE',
       executionScope: 'SEGMENT',
       payslipOrderCode: null,
-      persistToConcepts: true,
       summary: null,
     },
   }

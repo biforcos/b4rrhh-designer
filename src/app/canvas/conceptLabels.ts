@@ -1,4 +1,4 @@
-import type { CalculationType, FunctionalNature, ResultCompositionMode, ExecutionScope } from './types'
+import type { CalculationType, FunctionalNature, ExecutionScope } from './types'
 
 export const NATURE_LABELS: Record<FunctionalNature, string> = {
   EARNING:          'Devengo',
@@ -41,11 +41,6 @@ export const CALCULATION_TYPE_LABELS: Record<CalculationType, string> = {
   AGGREGATE:        'AGGREGATE',
   GREATEST:         'GREATEST',
   LEAST:            'LEAST',
-}
-
-export const COMPOSITION_LABELS: Record<ResultCompositionMode, string> = {
-  REPLACE:    'Reemplaza',
-  ACCUMULATE: 'Acumula',
 }
 
 export const SCOPE_LABELS: Record<ExecutionScope, string> = {
