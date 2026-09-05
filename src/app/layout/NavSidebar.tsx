@@ -44,7 +44,15 @@ export function NavSidebar() {
 
   return (
     <nav className="w-11 bg-surface-panel border-r border-border-default flex flex-col items-center py-3 gap-1 flex-shrink-0">
-      <div className="text-accent-primary text-lg font-bold mb-1">⬡</div>
+      {/* Isotipo solo, no logotipo: el rail mide 44 px. 20 px es el minimo de la
+          guia de identidad (b4rrhh_frontend/docs/identidad-visual.md). */}
+      <img
+        src={`${import.meta.env.BASE_URL}brand/isotipo.svg`}
+        alt="B4RRHH"
+        width={20}
+        height={20}
+        className="w-5 h-5 mb-1"
+      />
 
       {/* Rule system badge */}
       <div ref={popoverRef} className="relative mb-2">

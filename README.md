@@ -1,3 +1,16 @@
+# B4RRHH Payroll Designer
+
+## Identidad visual
+
+Los iconos de aplicación de `public/` (`favicon.ico`, `favicon.svg`, `apple-touch-icon.png`,
+`icon-*.png`, `site.webmanifest`) y el isotipo de `public/brand/` son **copias** de
+`b4rrhh_frontend/public/`. La fuente es el generador `b4rrhh_frontend/tools/identidad/build_all.py`
+y las reglas de uso están en `b4rrhh_frontend/docs/identidad-visual.md`. No se retocan aquí: si
+la marca cambia, se regenera allí y se vuelven a copiar (designer#1). Lo único propio del designer
+es el `site.webmanifest`, que cuelga de `/designer/` y lleva su nombre.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
