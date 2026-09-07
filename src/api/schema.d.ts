@@ -233,18 +233,22 @@ export interface paths {
         /** Get employee address by business key */
         get: operations["getAddressByBusinessKey"];
         /**
-         * Correct employee address by business key
-         * @description Administrative correction of the same address occurrence identified by ruleSystemCode, employeeTypeCode, employeeNumber, and addressNumber. This operation does not create a new occurrence and does not mutate occurrence identity fields.
+         * Correct employee address by business key (fields and/or dates)
+         * @description Administrative correction of the same address occurrence identified by ruleSystemCode, employeeTypeCode, employeeNumber, and addressNumber. This operation does not create a new occurrence and never changes the address type, which names the series the occurrence belongs to. The dates can be corrected too (ADR-057, decision 3): nothing else moves, and the corrected dates are judged against the same invariants as an add. Omit startDate to leave the dates as they are.
          */
         put: operations["updateAddressByBusinessKey"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove an address
+         * @description Removing the last address of its type reopens the previous one of the same type up to where the removed one ended (ADR-057). Removing one in the middle of the domicile would leave the presence uncovered and is rejected: the error names the neighbours the user could stretch first. In an optional type the gap is legal and the removal is accepted.
+         */
+        delete: operations["deleteAddressByBusinessKey"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/addresses/{addressNumber}/close": {
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/addresses/plan": {
         parameters: {
             query?: never;
             header?: never;
@@ -253,8 +257,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Close employee address by business key */
-        post: operations["closeAddressByBusinessKey"];
+        /**
+         * Plan a change to an address series without applying it
+         * @description Answers what adding, removing or correcting an address would do to the series of its type (ADR-057): what would be closed or reopened, what gap or overlap would appear, and the series as it would be. Nothing is written. A rejected plan is still a 200: the rejection and its reasons are in the body, so the screen can show them before the user confirms. An ADD names the series by addressTypeCode; a REMOVE or a CORRECT takes it from the address they are about.
+         */
+        post: operations["planAddressChangeByBusinessKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -271,7 +278,10 @@ export interface paths {
         /** List employee work center assignments by business key */
         get: operations["listEmployeeWorkCentersByBusinessKey"];
         put?: never;
-        /** Create employee work center assignment by business key */
+        /**
+         * Add a work center assignment to the employee's series
+         * @description The add is planned against the invariants of the series (ADR-057): inside the presence, no overlap, no gap. The one automatic consequence is closing the assignment in force on the new start date the day before it. An assignment that starts on the start date of an existing one is not an add: it is rejected as WORK_CENTER_IS_A_CORRECTION, naming the assignment it would correct, and has to be asked for as a correction (PUT).
+         */
         post: operations["createWorkCenterByBusinessKey"];
         delete?: never;
         options?: never;
@@ -279,7 +289,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/work-centers/replace-from-date": {
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/work-centers/plan": {
         parameters: {
             query?: never;
             header?: never;
@@ -289,10 +299,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Replace employee work center assignment from effective date by business key
-         * @description Canonical business operation to change employee work center assignment from an effective date. If an assignment covers effectiveDate, it is closed at effectiveDate - 1 and a new assignment starts at effectiveDate. If no assignment covers effectiveDate, a new assignment is created directly when the temporal context is valid.
+         * Plan a change to the work center series without applying it
+         * @description Answers what adding, removing or correcting a work center assignment would do to the series (ADR-057): what would be closed or reopened, what gap or overlap would appear, and the series as it would be. Nothing is written. A rejected plan is still a 200: the rejection and its reasons are in the body, so the screen can show them before the user confirms. An ADD on the start date of an existing assignment comes back as a CORRECT of that assignment, rejected as IS_A_CORRECTION.
          */
-        post: operations["replaceWorkCenterFromDateByBusinessKey"];
+        post: operations["planWorkCenterChangeByBusinessKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -310,32 +320,15 @@ export interface paths {
         get: operations["getWorkCenterByBusinessKey"];
         /**
          * Correct employee work center assignment by business key
-         * @description Administrative correction of an existing work center assignment occurrence. This operation corrects assignment content and dates for the same occurrence identified by business keys and does not represent a workflow transition.
+         * @description Administrative correction of an existing work center assignment occurrence. This operation corrects assignment content and dates for the same occurrence identified by business keys and does not represent a workflow transition. Nothing else moves (ADR-057): stretching or shrinking a neighbour is a separate correction of that neighbour.
          */
         put: operations["updateWorkCenterByBusinessKey"];
         post?: never;
         /**
          * Delete employee work center assignment by business key
-         * @description Administrative deletion of a specific work center assignment occurrence identified by business keys. This operation does not represent a workflow transition and does not replace close. Deletion is forbidden when the assignment startDate exactly matches the startDate of any presence for the same employee; in that case the occurrence must be corrected instead of deleted.
+         * @description Removes a work center assignment, bounded by the invariants of the series (ADR-057 §3). Removing the last one reopens the previous one, up to where the removed one ended. Removing one in the middle would leave a stretch of the presence uncovered and is rejected as WORK_CENTER_COVERAGE_GAP, naming the gap and the neighbours the user could stretch first. The assignment that starts a presence is one such case: it never goes without leaving a gap.
          */
         delete: operations["deleteWorkCenterByBusinessKey"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/work-centers/{workCenterAssignmentNumber}/close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Close employee work center assignment by business key */
-        post: operations["closeWorkCenterByBusinessKey"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -368,16 +361,20 @@ export interface paths {
         };
         /** Get employee working time by business key */
         get: operations["getWorkingTimeByBusinessKey"];
-        /** Correct a working time period (startDate and/or percentage) */
+        /** Correct a working time (dates and/or percentage) */
         put: operations["updateWorkingTimeByBusinessKey"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove a working time
+         * @description Removing the last working time reopens the previous one up to where the removed one ended (ADR-057). Removing one in the middle would leave the presence uncovered and is rejected: the error names the neighbours the user could stretch first.
+         */
+        delete: operations["deleteWorkingTimeByBusinessKey"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/working-times/{workingTimeNumber}/close": {
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/working-times/plan": {
         parameters: {
             query?: never;
             header?: never;
@@ -386,8 +383,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Close employee working time by business key */
-        post: operations["closeWorkingTimeByBusinessKey"];
+        /**
+         * Plan a change to the working time series without applying it
+         * @description Answers what adding, removing or correcting a working time would do to the series (ADR-057): what would be closed or reopened, what gap or overlap would appear, and the series as it would be. Nothing is written. A rejected plan is still a 200: the rejection and its reasons are in the body, so the screen can show them before the user confirms.
+         */
+        post: operations["planWorkingTimeChangeByBusinessKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -449,10 +449,15 @@ export interface paths {
         put?: never;
         /**
          * Create a new cost center distribution window
-         * @description Creates a new distribution window starting at startDate.
-         *     Rejected if an active distribution already exists at startDate.
-         *     To replace an existing active distribution, use replace-from-date instead.
-         *     All items share the same startDate. Sum of allocationPercentage must be <= 100.
+         * @description Adds a distribution window from startDate to endDate (open when omitted).
+         *     The occurrence is the window, the set of lines that share a start date, and
+         *     the series is judged by its invariants (ADR-057): the window in force on
+         *     startDate is closed the day before, every line of it; an overlap, a gap
+         *     inside the presence (coverage is mandatory) or a window outside the
+         *     presence is rejected naming what it ran into. Starting on the start date of
+         *     an existing window is not an add: it is rejected as COST_CENTER_IS_A_CORRECTION,
+         *     naming the window to correct with PUT.
+         *     All items share the same dates. Sum of allocationPercentage must be <= 100.
          */
         post: operations["createCostCenterDistribution"];
         delete?: never;
@@ -461,7 +466,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/cost-centers/replace-from-date": {
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/cost-centers/plan": {
         parameters: {
             query?: never;
             header?: never;
@@ -471,20 +476,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Replace the active cost center distribution from an effective date
-         * @description Finds the active distribution window at effectiveDate - 1 day,
-         *     closes all its lines at effectiveDate - 1 day,
-         *     and creates a new window starting at effectiveDate with the provided items.
-         *     Atomic operation. Rejected if no active window exists before effectiveDate.
+         * Plan a change to the cost center series without applying it
+         * @description Answers what adding, removing or correcting a distribution window would do to the series (ADR-057): what would be closed or reopened, what gap or overlap would appear, and the series as it would be. Nothing is written. A rejected plan is still a 200: the rejection and its reasons are in the body, so the screen can show them before the user confirms. An ADD on the start date of an existing window comes back as a CORRECT of that window, rejected as IS_A_CORRECTION. Windows are named by their dates: the occurrence is the window, not the line.
          */
-        post: operations["replaceCostCenterDistributionFromDate"];
+        post: operations["planCostCenterDistributionChange"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/cost-centers/distributions/{startDate}/close": {
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/cost-centers/distributions/{startDate}": {
         parameters: {
             query?: never;
             header?: never;
@@ -492,14 +494,17 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
         /**
-         * Close the cost center distribution window identified by startDate
-         * @description Closes all allocation lines in the window that shares the given startDate.
-         *     All lines in the window receive the same endDate.
+         * Correct the cost center distribution window identified by startDate
+         * @description Administrative correction of a distribution window (ADR-057, decision 3). Correcting a line is correcting the set: the window is replaced whole with the items given. Omit startDate in the body to keep the dates the window has and fix only its lines, without inventing a change in the history. Give startDate (and endDate, omitted for a window that stays open) to move the window; the corrected dates are judged by the same invariants as an add and nothing else moves.
          */
-        post: operations["closeCostCenterDistribution"];
-        delete?: never;
+        put: operations["updateCostCenterDistribution"];
+        post?: never;
+        /**
+         * Delete the cost center distribution window identified by startDate
+         * @description Removes a distribution window, every line of it (ADR-057 §3). Removing the last one reopens the previous one, up to where the removed one ended. Removing one in the middle leaves a stretch of the presence without a distribution, and that is accepted: the series declares optional coverage, so the gap is a legal state and nothing else moves. Ask POST /plan first to see the gap it would leave.
+         */
+        delete: operations["deleteCostCenterDistribution"];
         options?: never;
         head?: never;
         patch?: never;
@@ -515,25 +520,11 @@ export interface paths {
         /** List employee contracts by business key */
         get: operations["listEmployeeContractsByBusinessKey"];
         put?: never;
-        /** Create employee contract by business key */
+        /**
+         * Add a contract to the employee's series
+         * @description The add is planned against the invariants of the series (ADR-057): inside the presence, no overlap, no gap. The one automatic consequence is closing the contract in force on the new start date the day before it. A contract that starts on the start date of an existing one is not an add: it is rejected as CONTRACT_IS_A_CORRECTION, naming the contract it would correct, and has to be asked for as a correction (PUT).
+         */
         post: operations["createContractByBusinessKey"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/contracts/replace-from-date": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Replace employee contract from effective date by business key */
-        post: operations["replaceContractFromDateByBusinessKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -549,16 +540,23 @@ export interface paths {
         };
         /** Get employee contract by business key */
         get: operations["getContractByBusinessKey"];
-        /** Update employee contract by business key */
+        /**
+         * Correct a contract (codes and/or dates)
+         * @description Corrects the contract that starts on the path startDate. Nothing else moves (ADR-057): stretching or shrinking a neighbour is a separate, explicit correction, and a closed contract can be corrected too.
+         */
         put: operations["updateContractByBusinessKey"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove a contract
+         * @description Removing the last contract reopens the previous one up to where the removed one ended (ADR-057). Removing one in the middle would leave the presence uncovered and is rejected: the error names the neighbours the user could stretch first.
+         */
+        delete: operations["deleteContractByBusinessKey"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/contracts/{startDate}/close": {
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/contracts/plan": {
         parameters: {
             query?: never;
             header?: never;
@@ -567,8 +565,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Close employee contract by business key */
-        post: operations["closeContractByBusinessKey"];
+        /**
+         * Plan a change to the contract series without applying it
+         * @description Answers what adding, removing or correcting a contract would do to the series (ADR-057): what would be closed or reopened, what gap or overlap would appear, and the series as it would be. Nothing is written. A rejected plan is still a 200: the rejection and its reasons are in the body, so the screen can show them before the user confirms. An ADD on the start date of an existing contract comes back as a CORRECT of that contract, rejected as IS_A_CORRECTION.
+         */
+        post: operations["planContractChangeByBusinessKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -585,25 +586,11 @@ export interface paths {
         /** List employee labor classifications by business key */
         get: operations["listEmployeeLaborClassificationsByBusinessKey"];
         put?: never;
-        /** Create employee labor classification by business key */
+        /**
+         * Add a labor classification to the employee's series
+         * @description The add is planned against the invariants of the series (ADR-057): inside the presence, no overlap, no gap. The one automatic consequence is closing the occurrence in force on the new start date the day before it. An occurrence that starts on the start date of an existing one is not an add: it is rejected as LABOR_CLASSIFICATION_IS_A_CORRECTION, naming the occurrence it would correct, and has to be asked for as a correction (PUT).
+         */
         post: operations["createLaborClassificationByBusinessKey"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/labor-classifications/replace-from-date": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Replace employee labor classification from effective date by business key */
-        post: operations["replaceLaborClassificationFromDateByBusinessKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -619,16 +606,23 @@ export interface paths {
         };
         /** Get employee labor classification by business key */
         get: operations["getLaborClassificationByBusinessKey"];
-        /** Update employee labor classification by business key */
+        /**
+         * Correct a labor classification (codes and/or dates)
+         * @description Corrects the labor classification that starts on the path startDate. Nothing else moves (ADR-057): stretching or shrinking a neighbour is a separate, explicit correction, and a closed occurrence can be corrected too.
+         */
         put: operations["updateLaborClassificationByBusinessKey"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove a labor classification
+         * @description Removing the last labor classification reopens the previous one up to where the removed one ended (ADR-057). Removing one in the middle would leave the presence uncovered and is rejected: the error names the neighbours the user could stretch first.
+         */
+        delete: operations["deleteLaborClassificationByBusinessKey"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/labor-classifications/{startDate}/close": {
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/labor-classifications/plan": {
         parameters: {
             query?: never;
             header?: never;
@@ -637,8 +631,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Close employee labor classification by business key */
-        post: operations["closeLaborClassificationByBusinessKey"];
+        /**
+         * Plan a change to the labor classification series without applying it
+         * @description Answers what adding, removing or correcting a labor classification would do to the series (ADR-057): what would be closed or reopened, what gap or overlap would appear, and the series as it would be. Nothing is written. A rejected plan is still a 200: the rejection and its reasons are in the body, so the screen can show them before the user confirms. An ADD on the start date of an existing occurrence comes back as a CORRECT of that occurrence, rejected as IS_A_CORRECTION.
+         */
+        post: operations["planLaborClassificationChangeByBusinessKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -764,6 +761,26 @@ export interface paths {
         };
         /** Get rule entity type by code */
         get: operations["getRuleEntityTypeByCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rule-entity-translations/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Translation coverage of rule entity labels for one language
+         * @description Administration report (ADR-052). For every rule entity type, how many codes have a translation in the given language, how many do not, and which ones are missing. Responses never mark which labels are translated; this report is where the gaps show.
+         */
+        get: operations["getRuleEntityTranslationCoverage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -977,6 +994,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agreement-categories/{ruleSystemCode}/{categoryCode}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get SS cotización profile for an agreement category */
+        get: operations["getAgreementCategoryProfile"];
+        /** Create or update SS cotización profile for an agreement category */
+        put: operations["upsertAgreementCategoryProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agreements/{ruleSystemCode}/{agreementCode}/profile": {
         parameters: {
             query?: never;
@@ -1174,6 +1209,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rule-systems/{ruleSystemCode}/employee-display-name-format": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the employee display name format for a rule system */
+        get: operations["getEmployeeDisplayNameFormat"];
+        /** Set the employee display name format for a rule system */
+        put: operations["upsertEmployeeDisplayNameFormat"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rule-systems/{ruleSystemCode}/employee-numbering-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the employee numbering configuration for a rule system */
+        get: operations["getEmployeeNumberingConfig"];
+        /** Set the employee numbering configuration for a rule system */
+        put: operations["upsertEmployeeNumberingConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payrolls": {
         parameters: {
             query?: never;
@@ -1256,15 +1327,662 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payrolls/invalidate-bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk invalidate payrolls */
+        post: operations["bulkInvalidatePayroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/calculation-runs/launch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Launch a payroll calculation run */
+        post: operations["launchPayrollCalculation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/calculation-runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a payroll calculation run by ID */
+        get: operations["getPayrollCalculationRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/concepts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all concepts for a rule system */
+        get: operations["listPayrollConcepts"];
+        put?: never;
+        /** Create a payroll concept */
+        post: operations["createPayrollConcept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/concepts/{conceptCode}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the summary description of a payroll concept */
+        patch: operations["updatePayrollConceptSummary"];
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/concepts/{conceptCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a payroll concept */
+        delete: operations["deletePayrollConcept"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/concepts/{conceptCode}/operands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List operands for a concept */
+        get: operations["listConceptOperands"];
+        /** Replace all operands for a concept */
+        put: operations["replaceConceptOperands"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/concepts/{conceptCode}/feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List feed relations for a concept */
+        get: operations["listConceptFeeds"];
+        /** Replace all feed relations for a concept */
+        put: operations["replaceConceptFeeds"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List concept assignment rules */
+        get: operations["listConceptAssignments"];
+        put?: never;
+        /** Create a concept assignment rule */
+        post: operations["createConceptAssignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/assignments/{assignmentCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a concept assignment rule */
+        put: operations["updateConceptAssignment"];
+        post?: never;
+        /** Delete a concept assignment rule */
+        delete: operations["deleteConceptAssignment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/payroll-inputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List payroll inputs for an employee and period */
+        get: operations["listEmployeePayrollInputsByBusinessKey"];
+        put?: never;
+        /** Register a payroll input quantity for an employee and period */
+        post: operations["createEmployeePayrollInputByBusinessKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/payroll-inputs/{conceptCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update the quantity of a payroll input */
+        put: operations["updateEmployeePayrollInputByBusinessKey"];
+        post?: never;
+        /** Delete a payroll input for an employee, concept, and period */
+        delete: operations["deleteEmployeePayrollInputByBusinessKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/photo/upload-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate a presigned MinIO PUT URL for employee photo upload */
+        post: operations["generatePhotoUploadUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Confirm photo upload and persist the public URL */
+        put: operations["confirmEmployeePhoto"];
+        post?: never;
+        /** Delete employee photo from MinIO and clear photo_url */
+        delete: operations["deleteEmployeePhoto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/tax-information": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all tax information records for an employee */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleSystemCode: string;
+                    employeeTypeCode: string;
+                    employeeNumber: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmployeeTaxInformationResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Register employee tax information (Modelo 145) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleSystemCode: string;
+                    employeeTypeCode: string;
+                    employeeNumber: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateEmployeeTaxInformationRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmployeeTaxInformationResponse"];
+                    };
+                };
+                /** @description Invalid input or validFrom date */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Employee not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Tax information already exists for this validFrom */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/tax-information/{validFrom}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a specific tax information record by validFrom date */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleSystemCode: string;
+                    employeeTypeCode: string;
+                    employeeNumber: string;
+                    validFrom: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmployeeTaxInformationResponse"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        /** Correct (replace all fields of) a tax information record */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleSystemCode: string;
+                    employeeTypeCode: string;
+                    employeeNumber: string;
+                    validFrom: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CorrectEmployeeTaxInformationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmployeeTaxInformationResponse"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        /** Delete a tax information record */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleSystemCode: string;
+                    employeeTypeCode: string;
+                    employeeNumber: string;
+                    validFrom: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/absences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all absences for an employee */
+        get: operations["listEmployeeAbsences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/absences/{absenceTypeCode}/{startDate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get absence by business key (day mode) */
+        get: operations["getAbsenceDayMode"];
+        /** Upsert absence (day mode — startTime defaults to 00:00) */
+        put: operations["upsertAbsenceDayMode"];
+        post?: never;
+        /** Delete absence (day mode) */
+        delete: operations["deleteAbsenceDayMode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/absences/{absenceTypeCode}/{startDate}/{startTime}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get absence by business key (hour mode) */
+        get: operations["getAbsenceHourMode"];
+        /** Upsert absence (hour mode — startTime as HHmm e.g. 0900) */
+        put: operations["upsertAbsenceHourMode"];
+        post?: never;
+        /** Delete absence (hour mode) */
+        delete: operations["deleteAbsenceHourMode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/tables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new salary table */
+        post: operations["createPayrollTable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/tables/{tableCode}/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all rows for a salary table */
+        get: operations["listTableRows"];
+        put?: never;
+        /** Add a row to a salary table */
+        post: operations["createTableRow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/tables/{tableCode}/rows/{rowId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a salary table row */
+        put: operations["updateTableRow"];
+        post?: never;
+        /** Delete a salary table row */
+        delete: operations["deleteTableRow"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        RuleEntityTranslationCoverageResponse: {
+            /** @example es-ES */
+            languageCode: string;
+            types: components["schemas"]["RuleEntityTypeTranslationCoverage"][];
+        };
+        RuleEntityTypeTranslationCoverage: {
+            ruleEntityTypeCode: string;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            translated: number;
+            /** Format: int64 */
+            missing: number;
+            missingCodes: components["schemas"]["RuleEntityMissingTranslation"][];
+        };
+        RuleEntityMissingTranslation: {
+            ruleSystemCode: string;
+            code: string;
+            /** @description The base literal that is being served meanwhile. */
+            name: string;
+        };
+        RuleEntityTranslationErrorResponse: {
+            code: string;
+            message: string;
+        };
+        /** @enum {string} */
+        PayrollLaunchTargetSelectionType: "ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD" | "EMPLOYEE_LIST" | "SINGLE_EMPLOYEE";
+        PayrollLaunchEmployeeTargetRequest: {
+            employeeTypeCode: string;
+            employeeNumber: string;
+        };
+        PayrollLaunchTargetSelectionRequest: {
+            selectionType: components["schemas"]["PayrollLaunchTargetSelectionType"];
+            employee?: components["schemas"]["PayrollLaunchEmployeeTargetRequest"] | null;
+            employees?: components["schemas"]["PayrollLaunchEmployeeTargetRequest"][] | null;
+        };
+        LaunchPayrollCalculationRequest: {
+            ruleSystemCode: string;
+            payrollPeriodCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
+            calculationEngineCode: string;
+            calculationEngineVersion: string;
+            targetSelection: components["schemas"]["PayrollLaunchTargetSelectionRequest"];
+        };
+        PayrollCalculationRunResponse: {
+            /** Format: int64 */
+            runId: number;
+            status: string;
+            ruleSystemCode: string;
+            payrollPeriodCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
+            calculationEngineCode: string;
+            calculationEngineVersion: string;
+            totalCandidates: number;
+            totalEligible: number;
+            totalClaimed: number;
+            totalSkippedNotEligible: number;
+            totalSkippedAlreadyClaimed: number;
+            totalCalculated: number;
+            totalNotValid: number;
+            totalErrors: number;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            finishedAt?: string | null;
+        };
+        BulkInvalidatePayrollRequest: {
+            ruleSystemCode: string;
+            payrollPeriodCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
+            statusReasonCode: string;
+            targetSelection: components["schemas"]["PayrollLaunchTargetSelectionRequest"];
+        };
+        BulkInvalidatePayrollResponse: {
+            ruleSystemCode: string;
+            payrollPeriodCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
+            totalCandidates: number;
+            totalFound: number;
+            totalInvalidated: number;
+            totalSkippedAlreadyNotValid: number;
+            totalSkippedProtected: number;
+            totalSkippedNotFound: number;
+            statusReasonCode: string;
+        };
         HireEmployeeRequest: {
             ruleSystemCode: string;
             /** @description Optional in V1. Defaults to 'EMP' when not provided. */
             employeeTypeCode?: string;
-            employeeNumber: string;
             firstName: string;
             lastName1: string;
             lastName2?: string | null;
@@ -1301,6 +2019,7 @@ export interface components {
             lastName1?: string;
             lastName2?: string | null;
             preferredName?: string | null;
+            displayName: string;
             status: string;
             /** Format: date */
             hireDate: string;
@@ -1555,6 +2274,28 @@ export interface components {
             lastName2?: string | null;
             preferredName?: string | null;
             status: string;
+            photoUrl?: string | null;
+            /** @description Computed display name based on the rule system's configured format. */
+            displayName: string;
+        };
+        /** @description One page of the directory. `total` counts every employee that matches the same filters, not the rows on the page: it is what tells "nobody by that name" apart from "nobody else on this page". */
+        EmployeeDirectoryPageResponse: {
+            items: components["schemas"]["EmployeeDirectoryItemResponse"][];
+            /**
+             * Format: int32
+             * @description Zero-based index of this page.
+             */
+            page: number;
+            /**
+             * Format: int32
+             * @description Page size that was applied (the default when none was requested).
+             */
+            size: number;
+            /**
+             * Format: int64
+             * @description Employees matching the filters, across all pages.
+             */
+            total: number;
         };
         EmployeeDirectoryItemResponse: {
             ruleSystemCode: string;
@@ -1596,13 +2337,12 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** @description One event of the timeline. The event carries its type code and its data; it carries no human-readable phrase. Labelling the event type is the client's job, in the client's language (ADR-052 §4). Everything the former `title` and `subtitle` said is in `eventType` and `details`. */
         JourneyEventResponse: {
             /** Format: date */
             eventDate: string;
             eventType: components["schemas"]["JourneyEventType"];
             trackCode: components["schemas"]["JourneyTrackCode"];
-            title: string;
-            subtitle?: string | null;
             status: components["schemas"]["JourneyEventStatus"];
             isCurrent: boolean;
             details: {
@@ -1662,10 +2402,6 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
         };
-        CloseAddressRequest: {
-            /** Format: date */
-            endDate: string;
-        };
         UpdateAddressRequest: {
             street: string;
             city: string;
@@ -1673,6 +2409,100 @@ export interface components {
             countryCode: string;
             postalCode?: string | null;
             regionCode?: string | null;
+            /**
+             * Format: date
+             * @description The start date the address has after the correction. Required: the correction always says where the address starts, even when it does not move, and repeating the date it already has is how that is said. It used to be optional, and omitting it meant "leave the dates as they are" — which is indistinguishable from a client that forgot to send it, and ate three screens' edits in silence (backend#69).
+             */
+            startDate: string;
+            /**
+             * Format: date
+             * @description The corrected end date. Omit it, or send null, for an address that stays open.
+             */
+            endDate?: string | null;
+        };
+        AddressErrorResponse: {
+            /** @description ADDRESS_NOT_FOUND, ADDRESS_INVALID_REQUEST, ADDRESS_ALREADY_CLOSED, ADDRESS_OVERLAP, ADDRESS_COVERAGE_GAP, ADDRESS_IS_A_CORRECTION or ADDRESS_TYPE_COVERAGE_NOT_DECLARED. */
+            code: string;
+            message: string;
+            /** @description What a plan rejection names (ADR-057). ADDRESS_OVERLAP: overlaps (AddressPeriod[]). ADDRESS_COVERAGE_GAP: addressTypeCode, gaps (AddressPeriod[]) and stretchCandidates (AddressOccurrence[]). ADDRESS_IS_A_CORRECTION: correctedOccurrence (AddressOccurrence). ADDRESS_TYPE_COVERAGE_NOT_DECLARED: addressTypeCode. */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        AddressPeriod: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null means onwards.
+             */
+            endDate?: string | null;
+        };
+        AddressOccurrence: {
+            /**
+             * Format: int32
+             * @description Null only for the address a plan would add, which has no number yet.
+             */
+            addressNumber?: number | null;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+        };
+        PlanAddressChangeRequest: {
+            /**
+             * @description ADD plans a new address of addressTypeCode from startDate to endDate; REMOVE plans removing addressNumber; CORRECT plans giving addressNumber the dates startDate to endDate.
+             * @enum {string}
+             */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            /** @description Required for ADD: the series the address goes into. Optional for REMOVE and CORRECT, whose series is the type of addressNumber; if given it has to match. */
+            addressTypeCode?: string;
+            /**
+             * Format: int32
+             * @description Required for REMOVE and CORRECT.
+             */
+            addressNumber?: number;
+            /**
+             * Format: date
+             * @description Required for ADD and CORRECT.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Omit it for an address that stays open.
+             */
+            endDate?: string | null;
+        };
+        /** @description The one existing address the plan would move on its own. Only its end date changes. */
+        AddressPlanAdjustment: {
+            /** Format: int32 */
+            addressNumber: number;
+            before: components["schemas"]["AddressPeriod"];
+            after: components["schemas"]["AddressPeriod"];
+        };
+        AddressPlanResponse: {
+            /** @enum {string} */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            accepted: boolean;
+            /**
+             * @description Why the plan cannot be applied. Null when accepted. An address series may outlive the presence, so OUTSIDE_PRESENCE never occurs here. IS_A_CORRECTION means the plan is not the operation it was asked for: an ADD whose start date is the start date of an existing address of the same type is the correction of that one (named in correctedOccurrence) and has to be asked for as a CORRECT.
+             * @enum {string|null}
+             */
+            rejection?: "OVERLAP" | "GAP_NOT_ALLOWED" | "IS_A_CORRECTION" | null;
+            /** @description The series the plan is about. Addresses of other types are never in it. */
+            addressTypeCode: string;
+            occurrence: components["schemas"]["AddressOccurrence"];
+            /** @description On a correction, the address as it stands today, the one occurrence replaces. Null on an add and on a removal. */
+            correctedOccurrence?: components["schemas"]["AddressOccurrence"] | null;
+            adjustedOccurrence?: components["schemas"]["AddressPlanAdjustment"] | null;
+            /** @description Dates two addresses of the type would share. */
+            overlaps: components["schemas"]["AddressPeriod"][];
+            /** @description Stretches of the presence the resulting series would leave without an address of the type. Legal, and still reported, when the type is optional. */
+            gaps: components["schemas"]["AddressPeriod"][];
+            /** @description The neighbours of the gaps, which the user could stretch. Named, never moved. */
+            stretchCandidates: components["schemas"]["AddressOccurrence"][];
+            /** @description The series of the type as it would be, accepted or not. */
+            projected: components["schemas"]["AddressOccurrence"][];
         };
         AddressResponse: {
             /** Format: int32 */
@@ -1719,22 +2549,6 @@ export interface components {
              */
             endDate?: string | null;
         };
-        EmployeeCloseWorkCenterRequest: {
-            /**
-             * Format: date
-             * @description Date on which the assignment ends (yyyy-MM-dd). Must be >= the assignment's startDate. The resulting period [startDate, endDate] must be fully contained within an existing employee presence period.
-             */
-            endDate: string;
-        };
-        EmployeeReplaceWorkCenterFromDateRequest: {
-            /**
-             * Format: date
-             * @description Effective date (yyyy-MM-dd) from which the new work center assignment applies. If an assignment covers effectiveDate, it is closed at effectiveDate - 1.
-             */
-            effectiveDate: string;
-            /** @description Code validated against active WORK_CENTER rule entities for the employee ruleSystemCode. */
-            workCenterCode: string;
-        };
         EmployeeWorkCenterAssignmentResponse: {
             /** Format: int32 */
             workCenterAssignmentNumber: number;
@@ -1751,6 +2565,87 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
         };
+        /** @description A stretch of dates named by a plan or an error: a gap, or an overlap. */
+        EmployeeWorkCenterPeriod: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null means onwards.
+             */
+            endDate?: string | null;
+        };
+        /** @description A work center assignment as a plan or an error names it, by its number and its dates. */
+        EmployeeWorkCenterOccurrence: {
+            /**
+             * Format: int32
+             * @description Null only for the assignment a plan would add, which has no number yet.
+             */
+            workCenterAssignmentNumber?: number | null;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+        };
+        EmployeeWorkCenterErrorResponse: {
+            code: string;
+            message: string;
+            /** @description What a plan rejection names (ADR-057). WORK_CENTER_OVERLAP carries overlaps (EmployeeWorkCenterPeriod[]); WORK_CENTER_COVERAGE_GAP carries gaps (EmployeeWorkCenterPeriod[]) and stretchCandidates (EmployeeWorkCenterOccurrence[]); WORK_CENTER_IS_A_CORRECTION carries correctedOccurrence (EmployeeWorkCenterOccurrence), the assignment the add would correct. Catalog errors carry field. Null when the error has nothing to name. */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        PlanWorkCenterChangeRequest: {
+            /**
+             * @description ADD plans a new assignment from startDate to endDate; REMOVE plans removing workCenterAssignmentNumber; CORRECT plans giving workCenterAssignmentNumber the dates startDate to endDate.
+             * @enum {string}
+             */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            /**
+             * Format: int32
+             * @description Required for REMOVE and CORRECT.
+             */
+            workCenterAssignmentNumber?: number;
+            /**
+             * Format: date
+             * @description Required for ADD and CORRECT.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Omit it for an assignment that stays open.
+             */
+            endDate?: string | null;
+        };
+        /** @description The one existing assignment the plan would move on its own. Only its end date changes. */
+        EmployeeWorkCenterPlanAdjustment: {
+            /** Format: int32 */
+            workCenterAssignmentNumber: number;
+            before: components["schemas"]["EmployeeWorkCenterPeriod"];
+            after: components["schemas"]["EmployeeWorkCenterPeriod"];
+        };
+        EmployeeWorkCenterPlanResponse: {
+            /** @enum {string} */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            accepted: boolean;
+            /**
+             * @description Why the plan cannot be applied. Null when accepted. IS_A_CORRECTION means the plan is not the operation it was asked for: an ADD whose start date is the start date of an existing assignment is the correction of that one (named in correctedOccurrence) and has to be asked for as a CORRECT.
+             * @enum {string|null}
+             */
+            rejection?: "OUTSIDE_PRESENCE" | "OVERLAP" | "GAP_NOT_ALLOWED" | "IS_A_CORRECTION" | null;
+            occurrence: components["schemas"]["EmployeeWorkCenterOccurrence"];
+            /** @description On a correction, the assignment as it stands today, the one occurrence replaces. Null on an add and on a removal. */
+            correctedOccurrence?: components["schemas"]["EmployeeWorkCenterOccurrence"] | null;
+            adjustedOccurrence?: components["schemas"]["EmployeeWorkCenterPlanAdjustment"] | null;
+            /** @description Dates two assignments would share. */
+            overlaps: components["schemas"]["EmployeeWorkCenterPeriod"][];
+            /** @description Stretches of the presence the resulting series would leave uncovered. */
+            gaps: components["schemas"]["EmployeeWorkCenterPeriod"][];
+            /** @description The neighbours of the gaps, which the user could stretch. Named, never moved. */
+            stretchCandidates: components["schemas"]["EmployeeWorkCenterOccurrence"][];
+            /** @description The series as it would be, accepted or not. */
+            projected: components["schemas"]["EmployeeWorkCenterOccurrence"][];
+        };
         CostCenterDistributionItemRequest: {
             /** @description Code validated against active COST_CENTER rule entities for the employee ruleSystemCode. */
             costCenterCode: string;
@@ -1766,22 +2661,12 @@ export interface components {
              * @description Start date of the new distribution window (yyyy-MM-dd).
              */
             startDate: string;
-            items: components["schemas"]["CostCenterDistributionItemRequest"][];
-        };
-        ReplaceCostCenterDistributionFromDateRequest: {
             /**
              * Format: date
-             * @description The date from which the replacement takes effect. The active window ending at effectiveDate - 1 day is closed.
+             * @description End date shared by every line of the window (yyyy-MM-dd). Omit it for a window that stays open. A window added inside a closed one takes the dates the user gives (ADR-057): the covering window is closed the day before, and the invariants judge what is left.
              */
-            effectiveDate: string;
+            endDate?: string | null;
             items: components["schemas"]["CostCenterDistributionItemRequest"][];
-        };
-        CloseCostCenterDistributionRequest: {
-            /**
-             * Format: date
-             * @description Date on which all lines in the window end (yyyy-MM-dd). Must be >= window startDate.
-             */
-            endDate: string;
         };
         CostCenterDistributionItemResponse: {
             costCenterCode: string;
@@ -1814,6 +2699,87 @@ export interface components {
             /** @description Distribution windows ordered by startDate ascending. */
             windows: components["schemas"]["CostCenterDistributionWindowResponse"][];
         };
+        UpdateCostCenterDistributionRequest: {
+            /**
+             * Format: date
+             * @description The start date the window has after the correction. Required: the correction always says where the window starts, and correcting only its lines is said by repeating the start date the path already carries. It used to be optional, and omitting it meant "keep the dates" — indistinguishable from a client that forgot to send it (backend#69).
+             */
+            startDate: string;
+            /**
+             * Format: date
+             * @description The corrected end date. Omit it, or send null, for a window that stays open.
+             */
+            endDate?: string | null;
+            /** @description The lines the window has after the correction. They replace the current ones as a set. */
+            items: components["schemas"]["CostCenterDistributionItemRequest"][];
+        };
+        /** @description A stretch of dates named by a plan or an error: a distribution window (identified by its start date), a gap, or an overlap. */
+        CostCenterDistributionPeriod: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null means onwards.
+             */
+            endDate?: string | null;
+        };
+        CostCenterErrorResponse: {
+            code: string;
+            message: string;
+            /** @description What a plan rejection names (ADR-057). COST_CENTER_OVERLAP carries overlaps (CostCenterDistributionPeriod[]); COST_CENTER_COVERAGE_GAP carries gaps and stretchCandidates (CostCenterDistributionPeriod[]), though no operation produces it while the series declares optional coverage; COST_CENTER_IS_A_CORRECTION carries correctedOccurrence (CostCenterDistributionPeriod), the window the add would correct. Catalog errors carry field. Null when the error has nothing to name. */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        PlanCostCenterDistributionChangeRequest: {
+            /**
+             * @description ADD plans a new window from startDate to endDate; REMOVE plans removing the window that starts on windowStartDate; CORRECT plans giving that window the dates startDate to endDate.
+             * @enum {string}
+             */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            /**
+             * Format: date
+             * @description Required for REMOVE and CORRECT. Identifies the window by the day it starts.
+             */
+            windowStartDate?: string;
+            /**
+             * Format: date
+             * @description Required for ADD and CORRECT.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Omit it for a window that stays open.
+             */
+            endDate?: string | null;
+        };
+        /** @description The one existing window the plan would move on its own. Only its end date changes, for every line of it. */
+        CostCenterDistributionPlanAdjustment: {
+            before: components["schemas"]["CostCenterDistributionPeriod"];
+            after: components["schemas"]["CostCenterDistributionPeriod"];
+        };
+        CostCenterDistributionPlanResponse: {
+            /** @enum {string} */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            accepted: boolean;
+            /**
+             * @description Why the plan cannot be applied. Null when accepted. IS_A_CORRECTION means the plan is not the operation it was asked for: an ADD whose start date is the start date of an existing window is the correction of that one (named in correctedOccurrence) and has to be asked for as a CORRECT.
+             * @enum {string|null}
+             */
+            rejection?: "OUTSIDE_PRESENCE" | "OVERLAP" | "GAP_NOT_ALLOWED" | "IS_A_CORRECTION" | null;
+            occurrence: components["schemas"]["CostCenterDistributionPeriod"];
+            /** @description On a correction, the window as it stands today, the one occurrence replaces. Null on an add and on a removal. */
+            correctedOccurrence?: components["schemas"]["CostCenterDistributionPeriod"] | null;
+            adjustedOccurrence?: components["schemas"]["CostCenterDistributionPlanAdjustment"] | null;
+            /** @description Dates two windows would share. */
+            overlaps: components["schemas"]["CostCenterDistributionPeriod"][];
+            /** @description Stretches of the presence the resulting series would leave uncovered. */
+            gaps: components["schemas"]["CostCenterDistributionPeriod"][];
+            /** @description The neighbours of the gaps, which the user could stretch. Named, never moved. */
+            stretchCandidates: components["schemas"]["CostCenterDistributionPeriod"][];
+            /** @description The series as it would be, accepted or not. */
+            projected: components["schemas"]["CostCenterDistributionPeriod"][];
+        };
         CreateWorkingTimeRequest: {
             /**
              * Format: date
@@ -1821,29 +2787,103 @@ export interface components {
              */
             startDate: string;
             /**
+             * Format: date
+             * @description End date of the working time period (yyyy-MM-dd). Omit it for a working time that is still in force.
+             */
+            endDate?: string | null;
+            /**
              * Format: double
              * @description Percentage from > 0 to <= 100. Source of truth for derived persisted hours.
              */
             workingTimePercentage: number;
-        };
-        CloseWorkingTimeRequest: {
-            /**
-             * Format: date
-             * @description Date on which the working time period ends (yyyy-MM-dd).
-             */
-            endDate: string;
         };
         UpdateWorkingTimeRequest: {
             /**
              * Format: date
-             * @description Corrected start date (yyyy-MM-dd). When different from the current startDate, the predecessor period's endDate is automatically adjusted to newStartDate - 1 day.
+             * @description The start date the working time has after the correction (yyyy-MM-dd). Required, like in every temporal series (backend#69): correcting without moving the start is said by repeating the date it already has. No neighbour is adjusted: if the new dates leave a gap or an overlap the correction is rejected and the error names what to stretch.
              */
             startDate: string;
+            /**
+             * Format: date
+             * @description Corrected end date (yyyy-MM-dd). Omit it, or send null, to leave the working time open.
+             */
+            endDate?: string | null;
             /**
              * Format: double
              * @description Percentage from > 0 to <= 100. Source of truth for derived persisted hours.
              */
             workingTimePercentage: number;
+        };
+        PlanWorkingTimeChangeRequest: {
+            /**
+             * @description ADD plans a new working time from startDate to endDate; REMOVE plans removing workingTimeNumber; CORRECT plans giving workingTimeNumber the dates startDate to endDate.
+             * @enum {string}
+             */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            /**
+             * Format: int32
+             * @description Required for REMOVE and CORRECT.
+             */
+            workingTimeNumber?: number;
+            /**
+             * Format: date
+             * @description Required for ADD and CORRECT.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Omit it for a working time that stays open.
+             */
+            endDate?: string | null;
+        };
+        WorkingTimePeriod: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null means onwards.
+             */
+            endDate?: string | null;
+        };
+        WorkingTimeOccurrence: {
+            /**
+             * Format: int32
+             * @description Null only for the working time a plan would add, which has no number yet.
+             */
+            workingTimeNumber?: number | null;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+        };
+        /** @description The one existing working time the plan would move on its own. Only its end date changes. */
+        WorkingTimePlanAdjustment: {
+            /** Format: int32 */
+            workingTimeNumber: number;
+            before: components["schemas"]["WorkingTimePeriod"];
+            after: components["schemas"]["WorkingTimePeriod"];
+        };
+        WorkingTimePlanResponse: {
+            /** @enum {string} */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            accepted: boolean;
+            /**
+             * @description Why the plan cannot be applied. Null when accepted. IS_A_CORRECTION means the plan is not the operation it was asked for: an ADD whose start date is the start date of an existing working time is the correction of that one (named in correctedOccurrence) and has to be asked for as a CORRECT.
+             * @enum {string|null}
+             */
+            rejection?: "OUTSIDE_PRESENCE" | "OVERLAP" | "GAP_NOT_ALLOWED" | "IS_A_CORRECTION" | null;
+            occurrence: components["schemas"]["WorkingTimeOccurrence"];
+            /** @description On a correction, the working time as it stands today, the one occurrence replaces. Null on an add and on a removal. */
+            correctedOccurrence?: components["schemas"]["WorkingTimeOccurrence"] | null;
+            adjustedOccurrence?: components["schemas"]["WorkingTimePlanAdjustment"] | null;
+            /** @description Dates two working times would share. */
+            overlaps: components["schemas"]["WorkingTimePeriod"][];
+            /** @description Stretches of the presence the resulting series would leave uncovered. */
+            gaps: components["schemas"]["WorkingTimePeriod"][];
+            /** @description The neighbours of the gaps, which the user could stretch. Named, never moved. */
+            stretchCandidates: components["schemas"]["WorkingTimeOccurrence"][];
+            /** @description The series as it would be, accepted or not. */
+            projected: components["schemas"]["WorkingTimeOccurrence"][];
         };
         WorkingTimeResponse: {
             /** Format: int32 */
@@ -1886,32 +2926,19 @@ export interface components {
              */
             endDate?: string | null;
         };
-        ReplaceContractFromDateRequest: {
-            /**
-             * Format: date
-             * @description Effective date from which the contract is replaced (yyyy-MM-dd).
-             */
-            effectiveDate: string;
-            /** @description Code validated against active CONTRACT rule entities for the employee ruleSystemCode. */
-            contractCode: string;
-            /** @description Code validated against active CONTRACT_SUBTYPE rule entities for the employee ruleSystemCode and against the contract-subtype relation for effectiveDate. */
-            contractSubtypeCode: string;
-        };
         UpdateContractRequest: {
             /**
              * Format: date
-             * @description Corrected start date (yyyy-MM-dd). When provided and different from the path startDate, the predecessor period's endDate is automatically adjusted to newStartDate - 1 day. Must not overlap with other periods.
+             * @description The start date the contract has after the correction (yyyy-MM-dd). Required: correcting without moving the start is said by repeating the startDate the path already carries. It used to be optional, and omitting it meant "keep the path startDate" — indistinguishable from a client that forgot to send it (backend#69). Nothing else moves (ADR-057): if the new start leaves a gap the predecessor is not stretched, the request is rejected and the error names it as the neighbour to stretch.
              */
-            startDate?: string | null;
-            contractCode: string;
-            contractSubtypeCode: string;
-        };
-        CloseContractRequest: {
+            startDate: string;
             /**
              * Format: date
-             * @description Date on which the contract period ends (yyyy-MM-dd).
+             * @description Corrected end date (yyyy-MM-dd). Omit it, or send null, for a contract that stays open.
              */
-            endDate: string;
+            endDate?: string | null;
+            contractCode: string;
+            contractSubtypeCode: string;
         };
         ContractResponse: {
             contractCode: string;
@@ -1924,6 +2951,74 @@ export interface components {
             startDate: string;
             /** Format: date */
             endDate?: string | null;
+        };
+        /** @description A stretch of dates named by a plan or an error: a contract (identified by its start date), a gap, or an overlap. */
+        ContractPeriod: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null means onwards.
+             */
+            endDate?: string | null;
+        };
+        ContractErrorResponse: {
+            /** @enum {string} */
+            code: "CONTRACT_NOT_FOUND" | "CONTRACT_EMPLOYEE_NOT_FOUND" | "CONTRACT_INVALID_REQUEST" | "CONTRACT_OVERLAP" | "CONTRACT_COVERAGE_GAP" | "CONTRACT_OUTSIDE_PRESENCE" | "CONTRACT_IS_A_CORRECTION" | "CONTRACT_ALREADY_CLOSED";
+            message: string;
+            /** @description What a plan rejection names (ADR-057). CONTRACT_OVERLAP carries overlaps (ContractPeriod[]); CONTRACT_COVERAGE_GAP carries gaps and stretchCandidates (ContractPeriod[] each); CONTRACT_IS_A_CORRECTION carries correctedOccurrence (ContractPeriod), the contract the add would correct. Null when the error has nothing to name. */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        PlanContractChangeRequest: {
+            /**
+             * @description ADD plans a new contract from startDate to endDate; REMOVE plans removing the contract that starts on contractStartDate; CORRECT plans giving that contract the dates startDate to endDate.
+             * @enum {string}
+             */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            /**
+             * Format: date
+             * @description Identifies the contract to remove or correct: a contract is identified by the day it starts. Required for REMOVE and CORRECT.
+             */
+            contractStartDate?: string;
+            /**
+             * Format: date
+             * @description Required for ADD and CORRECT.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Omit it for a contract that stays open.
+             */
+            endDate?: string | null;
+        };
+        /** @description The one existing contract the plan would move on its own. Only its end date changes. */
+        ContractPlanAdjustment: {
+            before: components["schemas"]["ContractPeriod"];
+            after: components["schemas"]["ContractPeriod"];
+        };
+        ContractPlanResponse: {
+            /** @enum {string} */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            accepted: boolean;
+            /**
+             * @description Why the plan cannot be applied. Null when accepted. IS_A_CORRECTION means the plan is not the operation it was asked for: an ADD whose start date is the start date of an existing contract is the correction of that one (named in correctedOccurrence) and has to be asked for as a CORRECT.
+             * @enum {string|null}
+             */
+            rejection?: "OUTSIDE_PRESENCE" | "OVERLAP" | "GAP_NOT_ALLOWED" | "IS_A_CORRECTION" | null;
+            occurrence: components["schemas"]["ContractPeriod"];
+            /** @description On a correction, the contract as it stands today, the one occurrence replaces. Null on an add and on a removal. */
+            correctedOccurrence?: components["schemas"]["ContractPeriod"] | null;
+            adjustedOccurrence?: components["schemas"]["ContractPlanAdjustment"] | null;
+            /** @description Dates two contracts would share. */
+            overlaps: components["schemas"]["ContractPeriod"][];
+            /** @description Stretches of the presence the resulting series would leave uncovered. */
+            gaps: components["schemas"]["ContractPeriod"][];
+            /** @description The neighbours of the gaps, which the user could stretch. Named, never moved. */
+            stretchCandidates: components["schemas"]["ContractPeriod"][];
+            /** @description The series as it would be, accepted or not. */
+            projected: components["schemas"]["ContractPeriod"][];
         };
         CreateLaborClassificationRequest: {
             /** @description Code validated against active AGREEMENT rule entities for the employee ruleSystemCode. */
@@ -1941,42 +3036,99 @@ export interface components {
              */
             endDate?: string | null;
         };
-        ReplaceLaborClassificationFromDateRequest: {
-            /**
-             * Format: date
-             * @description Effective date from which the labor classification is replaced (yyyy-MM-dd).
-             */
-            effectiveDate: string;
-            /** @description Code validated against active AGREEMENT rule entities for the employee ruleSystemCode. */
-            agreementCode: string;
-            /** @description Code validated against active AGREEMENT_CATEGORY rule entities for the employee ruleSystemCode and against the agreement-category relation for effectiveDate. */
-            agreementCategoryCode: string;
-        };
         UpdateLaborClassificationRequest: {
             /**
              * Format: date
-             * @description Corrected start date (yyyy-MM-dd). When provided and different from the path startDate, the predecessor period's endDate is automatically adjusted to newStartDate - 1 day. Must not overlap with other periods.
+             * @description The start date the labor classification has after the correction (yyyy-MM-dd). Required: correcting without moving the start is said by repeating the startDate the path already carries. It used to be optional, and omitting it meant "keep the path startDate" — indistinguishable from a client that forgot to send it (backend#69). Nothing else moves (ADR-057): if the new start leaves a gap the predecessor is not stretched, the request is rejected and the error names it as the neighbour to stretch.
              */
-            startDate?: string | null;
-            agreementCode: string;
-            agreementCategoryCode: string;
-        };
-        CloseLaborClassificationRequest: {
+            startDate: string;
             /**
              * Format: date
-             * @description Date on which the labor classification period ends (yyyy-MM-dd).
+             * @description Corrected end date (yyyy-MM-dd). Omit it, or send null, for an occurrence that stays open.
              */
-            endDate: string;
+            endDate?: string | null;
+            agreementCode: string;
+            agreementCategoryCode: string;
         };
         LaborClassificationResponse: {
             agreementCode: string;
             agreementName?: string | null;
             agreementCategoryCode: string;
             agreementCategoryName?: string | null;
+            grupoCotizacionCode?: string | null;
+            /** @description Literal del grupo de cotización de la Seguridad Social. Es cita reglamentaria (ADR-054), así que no se traduce: llega el literal base del catálogo. Nulo cuando la categoría no tiene grupo, igual que grupoCotizacionCode. */
+            grupoCotizacionName?: string | null;
             /** Format: date */
             startDate: string;
             /** Format: date */
             endDate?: string | null;
+        };
+        /** @description A stretch of dates named by a plan or an error: a labor classification (identified by its start date), a gap, or an overlap. */
+        LaborClassificationPeriod: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null means onwards.
+             */
+            endDate?: string | null;
+        };
+        LaborClassificationErrorResponse: {
+            code: string;
+            message: string;
+            /** @description What a plan rejection names (ADR-057). LABOR_CLASSIFICATION_OVERLAP carries overlaps (LaborClassificationPeriod[]); LABOR_CLASSIFICATION_INCOMPLETE_COVERAGE carries gaps and stretchCandidates (LaborClassificationPeriod[] each); LABOR_CLASSIFICATION_IS_A_CORRECTION carries correctedOccurrence (LaborClassificationPeriod), the occurrence the add would correct. Catalog errors carry field. Null when the error has nothing to name. */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        PlanLaborClassificationChangeRequest: {
+            /**
+             * @description ADD plans a new labor classification from startDate to endDate; REMOVE plans removing the one that starts on laborClassificationStartDate; CORRECT plans giving that one the dates startDate to endDate.
+             * @enum {string}
+             */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            /**
+             * Format: date
+             * @description Identifies the labor classification to remove or correct: it is identified by the day it starts. Required for REMOVE and CORRECT.
+             */
+            laborClassificationStartDate?: string;
+            /**
+             * Format: date
+             * @description Required for ADD and CORRECT.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Omit it for an occurrence that stays open.
+             */
+            endDate?: string | null;
+        };
+        /** @description The one existing labor classification the plan would move on its own. Only its end date changes. */
+        LaborClassificationPlanAdjustment: {
+            before: components["schemas"]["LaborClassificationPeriod"];
+            after: components["schemas"]["LaborClassificationPeriod"];
+        };
+        LaborClassificationPlanResponse: {
+            /** @enum {string} */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            accepted: boolean;
+            /**
+             * @description Why the plan cannot be applied. Null when accepted. IS_A_CORRECTION means the plan is not the operation it was asked for: an ADD whose start date is the start date of an existing occurrence is the correction of that one (named in correctedOccurrence) and has to be asked for as a CORRECT.
+             * @enum {string|null}
+             */
+            rejection?: "OUTSIDE_PRESENCE" | "OVERLAP" | "GAP_NOT_ALLOWED" | "IS_A_CORRECTION" | null;
+            occurrence: components["schemas"]["LaborClassificationPeriod"];
+            /** @description On a correction, the occurrence as it stands today, the one occurrence replaces. Null on an add and on a removal. */
+            correctedOccurrence?: components["schemas"]["LaborClassificationPeriod"] | null;
+            adjustedOccurrence?: components["schemas"]["LaborClassificationPlanAdjustment"] | null;
+            /** @description Dates two occurrences would share. */
+            overlaps: components["schemas"]["LaborClassificationPeriod"][];
+            /** @description Stretches of the presence the resulting series would leave uncovered. */
+            gaps: components["schemas"]["LaborClassificationPeriod"][];
+            /** @description The neighbours of the gaps, which the user could stretch. Named, never moved. */
+            stretchCandidates: components["schemas"]["LaborClassificationPeriod"][];
+            /** @description The series as it would be, accepted or not. */
+            projected: components["schemas"]["LaborClassificationPeriod"][];
         };
         CreateIdentifierRequest: {
             identifierTypeCode: string;
@@ -2149,14 +3301,47 @@ export interface components {
             legalName: string;
             taxIdentifier?: string | null;
             address?: components["schemas"]["CompanyProfileAddress"];
+            /**
+             * @description Epígrafe AT/EP de la empresa ante la TGSS (código de tarifa de accidentes de trabajo)
+             * @example 6210
+             */
+            epigrafeAtCode?: string | null;
         };
         CompanyProfileResponse: {
             companyCode: string;
             legalName: string;
             taxIdentifier?: string | null;
             address: components["schemas"]["CompanyProfileAddress"];
+            /**
+             * @description Epígrafe AT/EP registrado ante la TGSS
+             * @example 6210
+             */
+            epigrafeAtCode?: string | null;
         };
         CompanyProfileErrorResponse: {
+            message: string;
+        };
+        UpsertAgreementCategoryProfileRequest: {
+            /**
+             * @description Grupo de cotización SS (01–11)
+             * @example 05
+             */
+            grupoCotizacionCode: string;
+            /**
+             * @description Tipo de base de cotización: mensual (grupos 1-7) o diaria (grupos 8-11)
+             * @example MENSUAL
+             * @enum {string}
+             */
+            tipoNomina: "MENSUAL" | "DIARIO";
+        };
+        AgreementCategoryProfileResponse: {
+            categoryCode: string;
+            /** @description Grupo de cotización SS (01–11) */
+            grupoCotizacionCode: string;
+            /** @enum {string} */
+            tipoNomina: "MENSUAL" | "DIARIO";
+        };
+        AgreementCategoryProfileErrorResponse: {
             message: string;
         };
         AgreementProfileResponse: {
@@ -2282,11 +3467,34 @@ export interface components {
         CreateRuleEntityTypeRequest: {
             code: string;
             name: string;
+            /** @enum {string} */
+            literalClass: "DOMAIN_VOCABULARY" | "REGULATORY_CITATION" | "PROPER_NOUN";
+            /** @enum {string} */
+            maintenanceMode: "MAINTAINED" | "REFERENCE" | "CLOSED";
+            groupCode: string;
         };
         RuleEntityTypeResponse: {
             code: string;
             name: string;
             active: boolean;
+            /** @enum {string} */
+            literalClass: "DOMAIN_VOCABULARY" | "REGULATORY_CITATION" | "PROPER_NOUN";
+            /** @enum {string} */
+            maintenanceMode: "MAINTAINED" | "REFERENCE" | "CLOSED";
+            group: components["schemas"]["RuleEntityTypeGroupResponse"];
+            /** @description Extensions declared for this type in the metamodel (ADR-053). Empty means root-only; the menu derives from this who gets its own screen (ADR-053 s7). */
+            extensions: components["schemas"]["RuleEntityTypeExtensionResponse"][];
+        };
+        RuleEntityTypeGroupResponse: {
+            code: string;
+            name: string;
+            displayOrder: number;
+        };
+        RuleEntityTypeExtensionResponse: {
+            extensionCode: string;
+            /** @enum {string} */
+            cardinality: "1:1" | "1:N";
+            required: boolean;
         };
         CreateRuleEntityRequest: {
             ruleSystemCode: string;
@@ -2326,7 +3534,8 @@ export interface components {
             employeeTypeCode: string;
             employeeNumber: string;
             payrollPeriodCode: string;
-            payrollTypeCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
             presenceNumber: number;
             /** @enum {string} */
             status: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
@@ -2390,7 +3599,8 @@ export interface components {
             employeeTypeCode: string;
             employeeNumber: string;
             payrollPeriodCode: string;
-            payrollTypeCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
             presenceNumber: number;
             /** @enum {string} */
             status: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
@@ -2400,9 +3610,303 @@ export interface components {
         PayrollErrorResponse: {
             message: string;
         };
+        CreatePayrollConceptRequest: {
+            /** @example 201 */
+            conceptCode: string;
+            /** @example PLUS_TRANSPORTE */
+            conceptMnemonic: string;
+            /** @enum {string} */
+            calculationType: "DIRECT_AMOUNT" | "RATE_BY_QUANTITY" | "PERCENTAGE" | "AGGREGATE" | "JAVA_PROVIDED" | "EMPLOYEE_INPUT";
+            /** @enum {string} */
+            functionalNature: "EARNING" | "DEDUCTION" | "BASE" | "INFORMATIONAL" | "TECHNICAL" | "TOTAL_EARNING" | "TOTAL_DEDUCTION" | "NET_PAY";
+            /** @enum {string} */
+            executionScope: "SEGMENT" | "PERIOD";
+            payslipOrderCode?: string | null;
+            summary?: string | null;
+        };
+        PayrollConceptDesignerResponse: {
+            ruleSystemCode: string;
+            conceptCode: string;
+            conceptMnemonic: string;
+            calculationType: string;
+            functionalNature: string;
+            executionScope: string;
+            payslipOrderCode?: string | null;
+            summary?: string | null;
+        };
+        UpdateConceptSummaryRequest: {
+            summary?: string | null;
+        };
+        UpdateConceptOperandsRequest: {
+            operands: {
+                /** @enum {string} */
+                operandRole: "QUANTITY" | "RATE" | "BASE" | "PERCENTAGE";
+                sourceObjectCode: string;
+            }[];
+        };
+        UpdateConceptFeedsRequest: {
+            feeds: {
+                sourceObjectCode: string;
+                invertSign: boolean;
+                /** Format: date */
+                effectiveFrom: string;
+                /** Format: date */
+                effectiveTo?: string | null;
+            }[];
+        };
+        ConceptOperandResponse: {
+            operandRole: string;
+            sourceObjectCode: string;
+        };
+        ConceptFeedResponse: {
+            sourceObjectCode: string;
+            invertSign: boolean;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveTo?: string | null;
+        };
+        PayrollConceptErrorResponse: {
+            /** @example PayrollConcept not found: ruleSystemCode=ESP, conceptCode=NO_EXISTE */
+            message: string;
+        };
+        UpdateConceptAssignmentRequest: {
+            companyCode?: string | null;
+            agreementCode?: string | null;
+            employeeTypeCode?: string | null;
+            /** Format: date */
+            validFrom: string;
+            /** Format: date */
+            validTo?: string | null;
+            priority: number;
+        };
+        CreateConceptAssignmentRequest: {
+            conceptCode: string;
+            companyCode?: string | null;
+            agreementCode?: string | null;
+            employeeTypeCode?: string | null;
+            /** Format: date */
+            validFrom: string;
+            /** Format: date */
+            validTo?: string | null;
+            priority: number;
+        };
+        ConceptAssignmentResponse: {
+            assignmentCode: string;
+            ruleSystemCode: string;
+            conceptCode: string;
+            companyCode?: string | null;
+            agreementCode?: string | null;
+            employeeTypeCode?: string | null;
+            /** Format: date */
+            validFrom: string;
+            /** Format: date */
+            validTo?: string | null;
+            priority: number;
+        };
+        CreateEmployeePayrollInputRequest: {
+            conceptCode: string;
+            /** @description Format yyyyMM */
+            period: number;
+            /** Format: double */
+            quantity: number;
+        };
+        UpdateEmployeePayrollInputRequest: {
+            /** Format: double */
+            quantity: number;
+        };
+        EmployeePayrollInputResponse: {
+            conceptCode: string;
+            period: number;
+            /** Format: double */
+            quantity: number;
+        };
+        EmployeePayrollInputsResponse: {
+            period: number;
+            inputs: components["schemas"]["EmployeePayrollInputResponse"][];
+        };
+        EmployeePayrollInputErrorResponse: {
+            code?: string;
+            message?: string;
+            details?: Record<string, never>;
+        };
+        CreatePayrollTableRequest: {
+            /** @example SB_99002405012025 */
+            objectCode: string;
+        };
+        PayrollTableResponse: {
+            ruleSystemCode?: string;
+            objectCode?: string;
+        };
+        CreateTableRowRequest: {
+            /** @example 99002405-G1 */
+            searchCode: string;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+            /** Format: double */
+            monthlyValue: number;
+            /** Format: double */
+            annualValue: number;
+            /** Format: double */
+            dailyValue: number;
+            /** Format: double */
+            hourlyValue: number;
+        };
+        UpdateTableRowRequest: {
+            searchCode?: string | null;
+            /** Format: date */
+            startDate?: string | null;
+            /** Format: date */
+            endDate?: string | null;
+            /** Format: double */
+            monthlyValue?: number | null;
+            /** Format: double */
+            annualValue?: number | null;
+            /** Format: double */
+            dailyValue?: number | null;
+            /** Format: double */
+            hourlyValue?: number | null;
+            active?: boolean | null;
+        };
+        TableRowResponse: {
+            /** Format: int64 */
+            id?: number;
+            searchCode?: string;
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string | null;
+            /** Format: double */
+            monthlyValue?: number;
+            /** Format: double */
+            annualValue?: number;
+            /** Format: double */
+            dailyValue?: number;
+            /** Format: double */
+            hourlyValue?: number;
+            active?: boolean;
+        };
+        GeneratePhotoUploadUrlResponse: {
+            uploadUrl?: string;
+            objectKey?: string;
+        };
+        ConfirmEmployeePhotoRequest: {
+            objectKey: string;
+        };
+        CreateEmployeeTaxInformationRequest: {
+            /** Format: date */
+            validFrom: string;
+            /** @enum {string} */
+            familySituation: "SINGLE_OR_OTHER" | "MARRIED_DEPENDENT_SPOUSE" | "SEPARATED_WITH_CHILDREN";
+            descendantsCount: number;
+            ascendantsCount: number;
+            /** @enum {string} */
+            disabilityDegree: "NONE" | "MODERATE" | "SEVERE";
+            pensionCompensatoria: boolean;
+            geographicMobility: boolean;
+            habitualResidenceLoan: boolean;
+            /** @enum {string} */
+            taxTerritory: "COMUN" | "ARABA" | "GIPUZKOA" | "BIZKAIA" | "NAVARRA";
+        };
+        CorrectEmployeeTaxInformationRequest: {
+            /** @enum {string} */
+            familySituation: "SINGLE_OR_OTHER" | "MARRIED_DEPENDENT_SPOUSE" | "SEPARATED_WITH_CHILDREN";
+            descendantsCount: number;
+            ascendantsCount: number;
+            /** @enum {string} */
+            disabilityDegree: "NONE" | "MODERATE" | "SEVERE";
+            pensionCompensatoria: boolean;
+            geographicMobility: boolean;
+            habitualResidenceLoan: boolean;
+            /** @enum {string} */
+            taxTerritory: "COMUN" | "ARABA" | "GIPUZKOA" | "BIZKAIA" | "NAVARRA";
+        };
+        EmployeeTaxInformationResponse: {
+            /** Format: date */
+            validFrom?: string;
+            familySituation?: string;
+            descendantsCount?: number;
+            ascendantsCount?: number;
+            disabilityDegree?: string;
+            pensionCompensatoria?: boolean;
+            geographicMobility?: boolean;
+            habitualResidenceLoan?: boolean;
+            taxTerritory?: string;
+        };
+        EmployeeDisplayNameFormatResponse: {
+            ruleSystemCode: string;
+            /** @enum {string} */
+            formatCode: "FULL_TITLE_CASE" | "FULL_UPPER" | "SURNAME_FIRST_UPPER" | "SHORT_TITLE" | "SHORT_UPPER" | "SURNAME_ABBREV_UPPER";
+            /** @description Human-readable label for the format code (in Spanish) */
+            formatLabel: string;
+            /** @description Example of the format applied to "Juan Antonio Biforcos Amor" */
+            example: string;
+        };
+        UpsertEmployeeDisplayNameFormatRequest: {
+            /** @enum {string} */
+            formatCode: "FULL_TITLE_CASE" | "FULL_UPPER" | "SURNAME_FIRST_UPPER" | "SHORT_TITLE" | "SHORT_UPPER" | "SURNAME_ABBREV_UPPER";
+        };
+        EmployeeNumberingConfigResponse: {
+            ruleSystemCode: string;
+            prefix: string;
+            numericPartLength: number;
+            step: number;
+            /** Format: int64 */
+            nextValue: number;
+            /** @description Preview of the next generated employee number (prefix + zero-padded nextValue) */
+            nextNumberPreview: string;
+        };
+        UpsertEmployeeNumberingConfigRequest: {
+            /** @default  */
+            prefix: string;
+            numericPartLength: number;
+            step: number;
+            /** Format: int64 */
+            nextValue: number;
+        };
+        UpsertAbsenceRequest: {
+            /**
+             * Format: date
+             * @example 2026-05-18
+             */
+            endDate?: string | null;
+            /** @example 17:30 */
+            endTime?: string | null;
+        };
+        AbsenceResponse: {
+            /** @example VACATION */
+            absenceTypeCode: string;
+            /**
+             * Format: date
+             * @example 2026-05-14
+             */
+            startDate: string;
+            /** @example 00:00 */
+            startTime: string;
+            /**
+             * Format: date
+             * @example 2026-05-18
+             */
+            endDate?: string | null;
+            /** @example null */
+            endTime?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AbsenceErrorResponse: {
+            error?: string;
+            message?: string;
+        };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+        AcceptLanguage: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -2429,13 +3933,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Employee directory list */
+            /** @description One page of the employee directory, with the total that matches the filters */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeDirectoryItemResponse"][];
+                    "application/json": components["schemas"]["EmployeeDirectoryPageResponse"];
                 };
             };
             /** @description Invalid query parameters */
@@ -2858,7 +4362,10 @@ export interface operations {
     listEmployeePresencesByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -2889,7 +4396,10 @@ export interface operations {
     createPresenceByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -2938,7 +4448,10 @@ export interface operations {
     getPresenceByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -2970,7 +4483,10 @@ export interface operations {
     closePresenceByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3020,7 +4536,10 @@ export interface operations {
     listEmployeeAddressesByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3051,7 +4570,10 @@ export interface operations {
     createAddressByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3065,7 +4587,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Address created */
+            /** @description Address added to the series of its type (ADR-057). Addresses form one series per employee and address type: the domicile, the fiscal address and the mailing address live side by side. If an address of the same type was in force on the new start date it has been closed the day before: that is the only automatic consequence. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -3088,19 +4610,24 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Address period overlaps for the same employee and address type */
+            /** @description The resulting series of that type would break an invariant (ADR-057). Error codes: ADDRESS_OVERLAP (details.overlaps names the dates shared with another address of the same type), ADDRESS_COVERAGE_GAP (the type is the domicile and details.gaps names the uncovered stretches of the presence, details.stretchCandidates the neighbouring addresses the user could stretch), ADDRESS_IS_A_CORRECTION (the new address starts on the start date of an existing one of the same type, named in details.correctedOccurrence: it would correct that one, not add a second one, and has to be asked for as a correction), or ADDRESS_TYPE_COVERAGE_NOT_DECLARED (the catalog does not say whether the type is mandatory or optional). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AddressErrorResponse"];
+                };
             };
         };
     };
     getAddressByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3132,7 +4659,10 @@ export interface operations {
     updateAddressByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3147,7 +4677,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Address corrected */
+            /** @description Address corrected. Nothing else moves (ADR-057): stretching or shrinking a neighbour is a separate, explicit correction. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3170,16 +4700,18 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Domain conflict if correction is invalid */
+            /** @description The corrected dates would break an invariant of the series of that type (ADR-057): ADDRESS_OVERLAP, or ADDRESS_COVERAGE_GAP when the type is the domicile (details name the gap and the neighbour to stretch). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AddressErrorResponse"];
+                };
             };
         };
     };
-    closeAddressByBusinessKey: {
+    deleteAddressByBusinessKey: {
         parameters: {
             query?: never;
             header?: never;
@@ -3191,23 +4723,10 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CloseAddressRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Address closed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AddressResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
+            /** @description Address removed */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3220,19 +4739,75 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Address already closed */
+            /** @description ADDRESS_COVERAGE_GAP: removing it would leave the presence without a domicile; details.gaps and details.stretchCandidates say where and what to stretch. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": components["schemas"]["AddressErrorResponse"];
+                };
+            };
+        };
+    };
+    planAddressChangeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanAddressChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description The plan, accepted or rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressPlanResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
+            };
+            /** @description Employee or address not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description ADDRESS_TYPE_COVERAGE_NOT_DECLARED for a type the catalog gives no coverage to. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressErrorResponse"];
+                };
             };
         };
     };
     listEmployeeWorkCentersByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3263,7 +4838,10 @@ export interface operations {
     createWorkCenterByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3300,16 +4878,18 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The requested period overlaps an existing work center assignment for this employee, or the period [startDate, endDate] is not fully contained within any of the employee's active presence periods. */
+            /** @description The resulting series would break an invariant (ADR-057): WORK_CENTER_OVERLAP (details.overlaps), WORK_CENTER_COVERAGE_GAP (details.gaps and details.stretchCandidates name the gap and the neighbour to stretch), WORK_CENTER_OUTSIDE_PRESENCE, WORK_CENTER_IS_A_CORRECTION (details.correctedOccurrence names the assignment the add would correct), or WORK_CENTER_COMPANY_MISMATCH. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EmployeeWorkCenterErrorResponse"];
+                };
             };
         };
     };
-    replaceWorkCenterFromDateByBusinessKey: {
+    planWorkCenterChangeByBusinessKey: {
         parameters: {
             query?: never;
             header?: never;
@@ -3322,17 +4902,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EmployeeReplaceWorkCenterFromDateRequest"];
+                "application/json": components["schemas"]["PlanWorkCenterChangeRequest"];
             };
         };
         responses: {
-            /** @description Work center assignment replaced from effective date */
+            /** @description The plan, accepted or rejected */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeWorkCenterAssignmentResponse"];
+                    "application/json": components["schemas"]["EmployeeWorkCenterPlanResponse"];
                 };
             };
             /** @description Invalid request */
@@ -3342,15 +4922,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Rule system, employee, or catalog not found */
+            /** @description Employee or work center assignment not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Work center replacement conflicts with temporal rules. Resulting periods overlap another assignment for this employee, are not fully contained within employee presence history, or leave a required presence coverage gap. */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3361,7 +4934,10 @@ export interface operations {
     getWorkCenterByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3393,7 +4969,10 @@ export interface operations {
     updateWorkCenterByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3431,12 +5010,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Work center assignment correction conflicts with temporal rules. Resulting period overlaps another assignment for this employee, is not fully contained within employee presence history, or references an invalid catalog value. */
+            /** @description The corrected dates would break an invariant (ADR-057): WORK_CENTER_OVERLAP (details.overlaps), WORK_CENTER_COVERAGE_GAP (details.gaps and details.stretchCandidates name the gap and the neighbour to stretch) or WORK_CENTER_OUTSIDE_PRESENCE; or the request is invalid by dates (WORK_CENTER_INVALID_PERIOD). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EmployeeWorkCenterErrorResponse"];
+                };
             };
         };
     };
@@ -3468,62 +5049,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Deletion is not allowed because the assignment startDate matches the startDate of an employee presence. The occurrence must be corrected instead of deleted. */
+            /** @description WORK_CENTER_COVERAGE_GAP: removing it would leave a stretch of the presence without a work center; details.gaps names it and details.stretchCandidates the neighbours the user could stretch. */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    closeWorkCenterByBusinessKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ruleSystemCode: string;
-                employeeTypeCode: string;
-                employeeNumber: string;
-                workCenterAssignmentNumber: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EmployeeCloseWorkCenterRequest"];
-            };
-        };
-        responses: {
-            /** @description Work center assignment closed */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmployeeWorkCenterAssignmentResponse"];
+                    "application/json": components["schemas"]["EmployeeWorkCenterErrorResponse"];
                 };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Rule system, employee, or work center assignment not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The work center assignment is already closed, or the resulting closed period is not fully contained within any of the employee's active presence periods. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -3575,7 +5108,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Working time created */
+            /** @description Working time added. If an existing working time was in force on the new start date it has been closed the day before (ADR-057): that is the only automatic consequence. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -3598,7 +5131,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Working time period overlaps another working time for the employee, falls outside employee presence history, or a functional numbering conflict was detected. */
+            /** @description The resulting series would break an invariant (ADR-057). Error codes: WORKING_TIME_OVERLAP (details.overlaps names the shared dates), WORKING_TIME_COVERAGE_GAP (details.gaps names the uncovered stretches of the presence and details.stretchCandidates the neighbouring working times the user could stretch), WORKING_TIME_OUTSIDE_PRESENCE, WORKING_TIME_IS_A_CORRECTION (the new working time starts on the start date of an existing one, named in details.correctedOccurrence: it would correct that one, not add a second one, and has to be asked for as a correction), or WORKING_TIME_NUMBER_CONFLICT. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3657,7 +5190,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Working time corrected successfully */
+            /** @description Working time corrected. Nothing else moves (ADR-057): stretching or shrinking a neighbour is a separate, explicit correction. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3680,7 +5213,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description New start date overlaps with another working time period */
+            /** @description The corrected dates would break an invariant (ADR-057): WORKING_TIME_OVERLAP, WORKING_TIME_COVERAGE_GAP (details name the gap and the neighbour to stretch) or WORKING_TIME_OUTSIDE_PRESENCE. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3689,7 +5222,7 @@ export interface operations {
             };
         };
     };
-    closeWorkingTimeByBusinessKey: {
+    deleteWorkingTimeByBusinessKey: {
         parameters: {
             query?: never;
             header?: never;
@@ -3701,23 +5234,10 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CloseWorkingTimeRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Working time closed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkingTimeResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
+            /** @description Working time removed */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3730,8 +5250,50 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Working time is already closed, or the resulting period is outside employee presence history. */
+            /** @description WORKING_TIME_COVERAGE_GAP: removing it would leave the presence uncovered; details.gaps and details.stretchCandidates say where and what to stretch. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    planWorkingTimeChangeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanWorkingTimeChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description The plan, accepted or rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingTimePlanResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee or working time not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3827,30 +5389,36 @@ export interface operations {
                     "application/json": components["schemas"]["CostCenterDistributionWindowResponse"];
                 };
             };
-            /** @description Invalid request (invalid item, sum > 100, missing fields) */
+            /** @description Invalid request (invalid item, sum > 100, missing fields, unknown catalog value) */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
+                };
             };
-            /** @description Employee or catalog value not found */
+            /** @description Employee not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
+                };
             };
-            /** @description An active distribution window already exists at startDate, or period is outside presence */
+            /** @description The resulting series would break an invariant (ADR-057): COST_CENTER_OVERLAP (details.overlaps), COST_CENTER_OUTSIDE_PRESENCE, or COST_CENTER_IS_A_CORRECTION (details.correctedOccurrence names the window the add would correct). A gap the add leaves is not an error: the series declares optional coverage. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
+                };
             };
         };
     };
-    replaceCostCenterDistributionFromDate: {
+    planCostCenterDistributionChange: {
         parameters: {
             query?: never;
             header?: never;
@@ -3863,17 +5431,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReplaceCostCenterDistributionFromDateRequest"];
+                "application/json": components["schemas"]["PlanCostCenterDistributionChangeRequest"];
             };
         };
         responses: {
-            /** @description New distribution window created, previous window closed */
+            /** @description The plan, accepted or rejected */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CostCenterDistributionWindowResponse"];
+                    "application/json": components["schemas"]["CostCenterDistributionPlanResponse"];
                 };
             };
             /** @description Invalid request */
@@ -3881,25 +5449,22 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
+                };
             };
-            /** @description Employee, catalog value, or active window not found */
+            /** @description Employee or distribution window not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-            /** @description Period is outside presence */
-            409: {
-                headers: {
-                    [name: string]: unknown;
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
                 };
-                content?: never;
             };
         };
     };
-    closeCostCenterDistribution: {
+    updateCostCenterDistribution: {
         parameters: {
             query?: never;
             header?: never;
@@ -3907,18 +5472,18 @@ export interface operations {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
                 employeeNumber: string;
-                /** @description The startDate that identifies the distribution window to close. */
+                /** @description The startDate that identifies the distribution window to correct. */
                 startDate: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CloseCostCenterDistributionRequest"];
+                "application/json": components["schemas"]["UpdateCostCenterDistributionRequest"];
             };
         };
         responses: {
-            /** @description Distribution window closed */
+            /** @description Distribution window corrected */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3927,8 +5492,52 @@ export interface operations {
                     "application/json": components["schemas"]["CostCenterDistributionWindowResponse"];
                 };
             };
-            /** @description Invalid request */
+            /** @description Invalid request (invalid item, sum > 100, missing fields, unknown catalog value) */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
+                };
+            };
+            /** @description Employee or distribution window not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
+                };
+            };
+            /** @description The corrected dates would break an invariant (ADR-057): COST_CENTER_OVERLAP (details.overlaps) or COST_CENTER_OUTSIDE_PRESENCE. A gap the corrected dates leave is not an error: the series declares optional coverage. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteCostCenterDistribution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                /** @description The startDate that identifies the distribution window to remove. */
+                startDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Distribution window removed */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3939,21 +5548,19 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-            /** @description Resulting period is outside employee presence history */
-            409: {
-                headers: {
-                    [name: string]: unknown;
+                content: {
+                    "application/json": components["schemas"]["CostCenterErrorResponse"];
                 };
-                content?: never;
             };
         };
     };
     listEmployeeContractsByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -3984,7 +5591,10 @@ export interface operations {
     createContractByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4021,68 +5631,24 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Contract period overlaps, is outside employee presence history, or results in incomplete presence coverage. */
+            /** @description The resulting series would break an invariant (ADR-057): CONTRACT_OVERLAP (details.overlaps), CONTRACT_COVERAGE_GAP (details.gaps and details.stretchCandidates name the gap and the neighbour to stretch), CONTRACT_OUTSIDE_PRESENCE, or CONTRACT_IS_A_CORRECTION (details.correctedOccurrence names the contract the add would correct). */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    replaceContractFromDateByBusinessKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ruleSystemCode: string;
-                employeeTypeCode: string;
-                employeeNumber: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReplaceContractFromDateRequest"];
-            };
-        };
-        responses: {
-            /** @description Contract replaced from effective date */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContractResponse"];
+                    "application/json": components["schemas"]["ContractErrorResponse"];
                 };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Employee not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Replacement results in an invalid timeline (overlap, outside presence, incomplete coverage, or impossible transition). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
     getContractByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4114,7 +5680,10 @@ export interface operations {
     updateContractByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4152,16 +5721,18 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Contract is already closed, or the resulting timeline is invalid (overlap, outside presence, incomplete coverage). */
+            /** @description The corrected dates would break an invariant (ADR-057): CONTRACT_OVERLAP, CONTRACT_COVERAGE_GAP (details name the gap and the neighbour to stretch) or CONTRACT_OUTSIDE_PRESENCE. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ContractErrorResponse"];
+                };
             };
         };
     };
-    closeContractByBusinessKey: {
+    deleteContractByBusinessKey: {
         parameters: {
             query?: never;
             header?: never;
@@ -4173,19 +5744,57 @@ export interface operations {
             };
             cookie?: never;
         };
+        requestBody?: never;
+        responses: {
+            /** @description Contract removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee or contract not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CONTRACT_COVERAGE_GAP: removing it would leave the presence uncovered; details.gaps and details.stretchCandidates say where and what to stretch. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContractErrorResponse"];
+                };
+            };
+        };
+    };
+    planContractChangeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CloseContractRequest"];
+                "application/json": components["schemas"]["PlanContractChangeRequest"];
             };
         };
         responses: {
-            /** @description Contract closed */
+            /** @description The plan, accepted or rejected */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContractResponse"];
+                    "application/json": components["schemas"]["ContractPlanResponse"];
                 };
             };
             /** @description Invalid request */
@@ -4202,19 +5811,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Contract is already closed, or closing creates timeline inconsistencies with employee presence. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
     listEmployeeLaborClassificationsByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4245,7 +5850,10 @@ export interface operations {
     createLaborClassificationByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4282,68 +5890,24 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Labor classification period overlaps, is outside employee presence history, or results in incomplete presence coverage. */
+            /** @description The resulting series would break an invariant (ADR-057): LABOR_CLASSIFICATION_OVERLAP (details.overlaps), LABOR_CLASSIFICATION_INCOMPLETE_COVERAGE (details.gaps and details.stretchCandidates name the gap and the neighbour to stretch), LABOR_CLASSIFICATION_OUTSIDE_PRESENCE, or LABOR_CLASSIFICATION_IS_A_CORRECTION (details.correctedOccurrence names the occurrence the add would correct). */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    replaceLaborClassificationFromDateByBusinessKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ruleSystemCode: string;
-                employeeTypeCode: string;
-                employeeNumber: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReplaceLaborClassificationFromDateRequest"];
-            };
-        };
-        responses: {
-            /** @description Labor classification replaced from effective date */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LaborClassificationResponse"];
+                    "application/json": components["schemas"]["LaborClassificationErrorResponse"];
                 };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Employee not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Replacement results in an invalid timeline (overlap, outside presence, incomplete coverage, or impossible transition). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
     getLaborClassificationByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4375,7 +5939,10 @@ export interface operations {
     updateLaborClassificationByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4413,16 +5980,18 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Labor classification is already closed, or the resulting timeline is invalid (overlap, outside presence, incomplete coverage). */
+            /** @description The corrected dates would break an invariant (ADR-057): LABOR_CLASSIFICATION_OVERLAP, LABOR_CLASSIFICATION_INCOMPLETE_COVERAGE (details name the gap and the neighbour to stretch) or LABOR_CLASSIFICATION_OUTSIDE_PRESENCE. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LaborClassificationErrorResponse"];
+                };
             };
         };
     };
-    closeLaborClassificationByBusinessKey: {
+    deleteLaborClassificationByBusinessKey: {
         parameters: {
             query?: never;
             header?: never;
@@ -4434,19 +6003,57 @@ export interface operations {
             };
             cookie?: never;
         };
+        requestBody?: never;
+        responses: {
+            /** @description Labor classification removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee or labor classification not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description LABOR_CLASSIFICATION_INCOMPLETE_COVERAGE: removing it would leave the presence uncovered; details.gaps and details.stretchCandidates say where and what to stretch. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LaborClassificationErrorResponse"];
+                };
+            };
+        };
+    };
+    planLaborClassificationChangeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CloseLaborClassificationRequest"];
+                "application/json": components["schemas"]["PlanLaborClassificationChangeRequest"];
             };
         };
         responses: {
-            /** @description Labor classification closed */
+            /** @description The plan, accepted or rejected */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LaborClassificationResponse"];
+                    "application/json": components["schemas"]["LaborClassificationPlanResponse"];
                 };
             };
             /** @description Invalid request */
@@ -4463,19 +6070,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Labor classification is already closed, or closing creates timeline inconsistencies with employee presence. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
     listEmployeeIdentifiersByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4506,7 +6109,10 @@ export interface operations {
     createIdentifierByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4555,7 +6161,10 @@ export interface operations {
     getIdentifierByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4587,7 +6196,10 @@ export interface operations {
     updateIdentifierByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4667,7 +6279,10 @@ export interface operations {
     listEmployeeContactsByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4698,7 +6313,10 @@ export interface operations {
     createContactByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4747,7 +6365,10 @@ export interface operations {
     getContactByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4779,7 +6400,10 @@ export interface operations {
     updateContactByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 employeeTypeCode: string;
@@ -4959,6 +6583,45 @@ export interface operations {
             };
             /** @description Rule entity type not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getRuleEntityTranslationCoverage: {
+        parameters: {
+            query: {
+                /** @description Short BCP 47 tag (es-ES, fr-FR, en). */
+                languageCode: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Coverage report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleEntityTranslationCoverageResponse"];
+                };
+            };
+            /** @description languageCode is not a short BCP 47 tag */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleEntityTranslationErrorResponse"];
+                };
+            };
+            /** @description Requires the ADMIN role */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5527,6 +7190,87 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompanyProfileErrorResponse"];
+                };
+            };
+        };
+    };
+    getAgreementCategoryProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example ESP */
+                ruleSystemCode: string;
+                /** @example CAT_ADMIN */
+                categoryCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementCategoryProfileResponse"];
+                };
+            };
+            /** @description Category or profile not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementCategoryProfileErrorResponse"];
+                };
+            };
+        };
+    };
+    upsertAgreementCategoryProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example ESP */
+                ruleSystemCode: string;
+                /** @example CAT_ADMIN */
+                categoryCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertAgreementCategoryProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Profile created or updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementCategoryProfileResponse"];
+                };
+            };
+            /** @description Category not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementCategoryProfileErrorResponse"];
+                };
+            };
+            /** @description Grupo de cotización invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgreementCategoryProfileErrorResponse"];
                 };
             };
         };
@@ -6179,6 +7923,137 @@ export interface operations {
             };
         };
     };
+    getEmployeeDisplayNameFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current format configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeDisplayNameFormatResponse"];
+                };
+            };
+            /** @description No format configured for this rule system */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    upsertEmployeeDisplayNameFormat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertEmployeeDisplayNameFormatRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated format configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeDisplayNameFormatResponse"];
+                };
+            };
+            /** @description Invalid formatCode or rule system not found */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getEmployeeNumberingConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current numbering configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeNumberingConfigResponse"];
+                };
+            };
+            /** @description No numbering configuration for this rule system */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    upsertEmployeeNumberingConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertEmployeeNumberingConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated numbering configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeNumberingConfigResponse"];
+                };
+            };
+            /** @description Rule system not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid configuration (prefix.length + numericPartLength > 15) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     searchPayrolls: {
         parameters: {
             query?: {
@@ -6220,7 +8095,7 @@ export interface operations {
                 employeeTypeCode: string;
                 employeeNumber: string;
                 payrollPeriodCode: string;
-                payrollTypeCode: string;
+                payrollTypeCode: "NORMAL" | "EXTRA";
                 presenceNumber: number;
             };
             cookie?: never;
@@ -6256,7 +8131,7 @@ export interface operations {
                 employeeTypeCode: string;
                 employeeNumber: string;
                 payrollPeriodCode: string;
-                payrollTypeCode: string;
+                payrollTypeCode: "NORMAL" | "EXTRA";
                 presenceNumber: number;
             };
             cookie?: never;
@@ -6305,7 +8180,7 @@ export interface operations {
                 employeeTypeCode: string;
                 employeeNumber: string;
                 payrollPeriodCode: string;
-                payrollTypeCode: string;
+                payrollTypeCode: "NORMAL" | "EXTRA";
                 presenceNumber: number;
             };
             cookie?: never;
@@ -6350,7 +8225,7 @@ export interface operations {
                 employeeTypeCode: string;
                 employeeNumber: string;
                 payrollPeriodCode: string;
-                payrollTypeCode: string;
+                payrollTypeCode: "NORMAL" | "EXTRA";
                 presenceNumber: number;
             };
             cookie?: never;
@@ -6383,6 +8258,1123 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PayrollErrorResponse"];
                 };
+            };
+        };
+    };
+    bulkInvalidatePayroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkInvalidatePayrollRequest"];
+            };
+        };
+        responses: {
+            /** @description Bulk invalidation completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkInvalidatePayrollResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rule system or payroll type not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    launchPayrollCalculation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LaunchPayrollCalculationRequest"];
+            };
+        };
+        responses: {
+            /** @description Calculation run created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollCalculationRunResponse"];
+                };
+            };
+        };
+    };
+    getPayrollCalculationRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Calculation run found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollCalculationRunResponse"];
+                };
+            };
+            /** @description Calculation run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+        };
+    };
+    listPayrollConcepts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptDesignerResponse"][];
+                };
+            };
+        };
+    };
+    createPayrollConcept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePayrollConceptRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptDesignerResponse"];
+                };
+            };
+            /** @description Concept already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updatePayrollConceptSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConceptSummaryRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptDesignerResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deletePayrollConcept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listConceptOperands: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptOperandResponse"][];
+                };
+            };
+        };
+    };
+    replaceConceptOperands: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConceptOperandsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptOperandResponse"][];
+                };
+            };
+            /**
+             * @description The target concept does not exist in the rule system. A source that does not
+             *     exist is a 422, not a 404: the concept addressed by the path is the only 404.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptErrorResponse"];
+                };
+            };
+            /**
+             * @description The request is well formed but the graph cannot take it, and nothing was
+             *     written. Two cases share this status:
+             *
+             *     - a `sourceObjectCode` does not resolve to a concept of the same rule system —
+             *       `PayrollObject not found: ruleSystemCode=ESP, objectTypeCode=CONCEPT,
+             *       objectCode=NO_EXISTE`;
+             *     - an operand crosses from SEGMENT to PERIOD (ADR-058) — `Operand QUANTITY of
+             *       PERIOD concept ESP/T_PRECIO_DIA (T_PRECIO_DIA) cannot read SEGMENT concept
+             *       ESP/T_DIAS_PRESENCIA (T_DIAS_PRESENCIA): no operand crosses from SEGMENT to
+             *       PERIOD (ADR-058); a feed relation may`. The message names the role and both
+             *       concepts so the client can point at the edge it refused.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptErrorResponse"];
+                };
+            };
+        };
+    };
+    listConceptFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptFeedResponse"][];
+                };
+            };
+        };
+    };
+    replaceConceptFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConceptFeedsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptFeedResponse"][];
+                };
+            };
+        };
+    };
+    listConceptAssignments: {
+        parameters: {
+            query?: {
+                conceptCode?: string;
+            };
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptAssignmentResponse"][];
+                };
+            };
+        };
+    };
+    createConceptAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateConceptAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptAssignmentResponse"];
+                };
+            };
+        };
+    };
+    updateConceptAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                assignmentCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConceptAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptAssignmentResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteConceptAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                assignmentCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listEmployeePayrollInputsByBusinessKey: {
+        parameters: {
+            query: {
+                /** @description Format yyyyMM, e.g. 202604 */
+                period: number;
+            };
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payroll inputs list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputsResponse"];
+                };
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createEmployeePayrollInputByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmployeePayrollInputRequest"];
+            };
+        };
+        responses: {
+            /** @description Payroll input created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Payroll input already exists for this concept and period */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputErrorResponse"];
+                };
+            };
+        };
+    };
+    updateEmployeePayrollInputByBusinessKey: {
+        parameters: {
+            query: {
+                /** @description Format yyyyMM, e.g. 202604 */
+                period: number;
+            };
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEmployeePayrollInputRequest"];
+            };
+        };
+        responses: {
+            /** @description Payroll input updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Payroll input not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteEmployeePayrollInputByBusinessKey: {
+        parameters: {
+            query: {
+                /** @description Format yyyyMM, e.g. 202604 */
+                period: number;
+            };
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payroll input deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Payroll input not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputErrorResponse"];
+                };
+            };
+        };
+    };
+    generatePhotoUploadUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Presigned upload URL and object key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeneratePhotoUploadUrlResponse"];
+                };
+            };
+        };
+    };
+    confirmEmployeePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmEmployeePhotoRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated employee with new photoUrl */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeResponse"];
+                };
+            };
+        };
+    };
+    deleteEmployeePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Photo deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listEmployeeAbsences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of absences ordered by startDate DESC, startTime DESC */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceResponse"][];
+                };
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAbsenceDayMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                absenceTypeCode: string;
+                startDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Absence found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceResponse"];
+                };
+            };
+            /** @description Absence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+        };
+    };
+    upsertAbsenceDayMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                absenceTypeCode: string;
+                startDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertAbsenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Absence upserted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceResponse"];
+                };
+            };
+            /** @description Absence overlaps with an existing absence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteAbsenceDayMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                absenceTypeCode: string;
+                startDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Absence deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Absence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+        };
+    };
+    getAbsenceHourMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                absenceTypeCode: string;
+                startDate: string;
+                startTime: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Absence found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceResponse"];
+                };
+            };
+            /** @description Absence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+        };
+    };
+    upsertAbsenceHourMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                absenceTypeCode: string;
+                startDate: string;
+                startTime: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertAbsenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Absence upserted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceResponse"];
+                };
+            };
+            /** @description Overlap conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteAbsenceHourMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                absenceTypeCode: string;
+                startDate: string;
+                startTime: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Absence deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Absence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+        };
+    };
+    createPayrollTable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePayrollTableRequest"];
+            };
+        };
+        responses: {
+            /** @description Table created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollTableResponse"];
+                };
+            };
+            /** @description Table already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listTableRows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                tableCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rows listed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableRowResponse"][];
+                };
+            };
+        };
+    };
+    createTableRow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                tableCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTableRowRequest"];
+            };
+        };
+        responses: {
+            /** @description Row created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableRowResponse"];
+                };
+            };
+            /** @description Row already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateTableRow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                tableCode: string;
+                rowId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTableRowRequest"];
+            };
+        };
+        responses: {
+            /** @description Row updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableRowResponse"];
+                };
+            };
+            /** @description Row not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteTableRow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                tableCode: string;
+                rowId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Row deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Row not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
