@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,9 +27,13 @@ export function CreateAssignmentDrawer({ open, onClose, ruleSystemCode }: Props)
   const qc = useQueryClient()
   const [form, setForm] = useState(initialForm)
 
-  useEffect(() => {
+  // El formulario se vacia cuando el cajon se cierra. Ajustar el estado durante el render es
+  // lo que documenta React para esto: en un efecto obliga a un segundo render en cascada.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (wasOpen !== open) {
+    setWasOpen(open)
     if (!open) setForm(initialForm)
-  }, [open])
+  }
 
   const { data: concepts = [] } = useQuery({
     queryKey: ['concepts', ruleSystemCode],

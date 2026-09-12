@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -33,9 +33,14 @@ export function ConceptDetailPanel({ node, edges, ruleSystemCode, onDeleted }: P
   const [summaryDraft, setSummaryDraft] = useState(node.data.summary ?? '')
   const qc = useQueryClient()
 
-  useEffect(() => {
+  // El borrador sigue al concepto seleccionado y a lo que el backend devuelva de el. Ajustar el
+  // estado durante el render es lo que documenta React para esto: en un efecto obliga a un
+  // segundo render en cascada.
+  const [syncedSummary, setSyncedSummary] = useState({ id: node.id, summary: node.data.summary })
+  if (syncedSummary.id !== node.id || syncedSummary.summary !== node.data.summary) {
+    setSyncedSummary({ id: node.id, summary: node.data.summary })
     setSummaryDraft(node.data.summary ?? '')
-  }, [node.id, node.data.summary])
+  }
 
   const summaryMutation = useMutation({
     mutationFn: (summary: string | null) =>

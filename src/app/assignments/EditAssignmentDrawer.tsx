@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,29 +12,41 @@ interface Props {
   assignment: AssignmentDto | null
 }
 
+function assignmentToForm(assignment: AssignmentDto) {
+  return {
+    companyCode: assignment.companyCode ?? '',
+    agreementCode: assignment.agreementCode ?? '',
+    employeeTypeCode: assignment.employeeTypeCode ?? '',
+    validFrom: assignment.validFrom,
+    validTo: assignment.validTo ?? '',
+    priority: String(assignment.priority),
+  }
+}
+
+const emptyForm = {
+  companyCode: '',
+  agreementCode: '',
+  employeeTypeCode: '',
+  validFrom: '',
+  validTo: '',
+  priority: '',
+}
+
+function formFor(assignment: AssignmentDto | null) {
+  return assignment ? assignmentToForm(assignment) : emptyForm
+}
+
 export function EditAssignmentDrawer({ open, onClose, ruleSystemCode, assignment }: Props) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({
-    companyCode: '',
-    agreementCode: '',
-    employeeTypeCode: '',
-    validFrom: '',
-    validTo: '',
-    priority: '',
-  })
+  const [form, setForm] = useState(() => formFor(assignment))
 
-  useEffect(() => {
-    if (assignment) {
-      setForm({
-        companyCode: assignment.companyCode ?? '',
-        agreementCode: assignment.agreementCode ?? '',
-        employeeTypeCode: assignment.employeeTypeCode ?? '',
-        validFrom: assignment.validFrom,
-        validTo: assignment.validTo ?? '',
-        priority: String(assignment.priority),
-      })
-    }
-  }, [assignment])
+  // El formulario sigue a la asignacion que se edita. Ajustar el estado durante el render es lo
+  // que documenta React para esto: en un efecto obliga a un segundo render en cascada.
+  const [syncedAssignment, setSyncedAssignment] = useState(assignment)
+  if (syncedAssignment !== assignment) {
+    setSyncedAssignment(assignment)
+    if (assignment) setForm(assignmentToForm(assignment))
+  }
 
   const mutation = useMutation({
     mutationFn: () =>

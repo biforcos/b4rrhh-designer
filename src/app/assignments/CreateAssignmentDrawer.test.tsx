@@ -42,7 +42,8 @@ vi.mock('@/components/ui/select', () => {
     return null
   }
 
-  function SelectValue(_props: { placeholder?: string }) {
+  // El placeholder no se pinta en el doble: la aserción mira el <select> que hay debajo.
+  function SelectValue() {
     return null
   }
 

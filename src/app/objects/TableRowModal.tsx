@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { tableRowsApi, type TableRowDto } from './api/tableRowsApi'
 
@@ -41,9 +41,14 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
   const qc = useQueryClient()
   const [form, setForm] = useState<FormState>(row ? rowToForm(row) : emptyForm())
 
-  useEffect(() => {
+  // El formulario sigue a la fila que se edita, y se vacia cuando es un alta. Ajustar el estado
+  // durante el render es lo que documenta React para esto: en un efecto obliga a un segundo
+  // render en cascada.
+  const [syncedRow, setSyncedRow] = useState(row)
+  if (syncedRow !== row) {
+    setSyncedRow(row)
     setForm(row ? rowToForm(row) : emptyForm())
-  }, [row])
+  }
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [field]: field === 'active' ? (e.target as HTMLInputElement).checked : e.target.value }))
