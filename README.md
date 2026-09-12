@@ -11,6 +11,24 @@ es el `site.webmanifest`, que cuelga de `/designer/` y lleva su nombre.
 
 ---
 
+## Tipos del contrato del backend
+
+`src/api/schema.d.ts` se **genera**, no se escribe. Sale de `openapi/personnel-administration-api.yaml`,
+que es una copia versionada del contrato que posee el backend.
+
+```
+npm run api:pull       # trae el contrato de un checkout hermano de b4rrhh_backend
+npm run api:generate   # genera src/api/schema.d.ts desde la copia local
+npm run api:refresh    # las dos cosas
+```
+
+El generador es `openapi-typescript`, y su versión está fijada en `package.json`: se invoca el
+binario instalado, no un `npx …@7`, porque dos versiones del generador escriben ficheros
+distintos sin que cambie el contrato. Hasta el `designer#6` no había ninguna de estas tres cosas
+y el fichero llevaba sin regenerarse desde el scaffold.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
