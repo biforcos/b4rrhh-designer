@@ -27,6 +27,10 @@ env:
   IMAGEN: b4rrhh-designer
   SERVIDOR: 192.168.1.151
   NODE: node-designer-${{ github.sha }}
+  # El contrato de main del backend, leido por la API de Gitea. Mismo host y
+  # mismo puerto que el registry de arriba: el runner ya habla con el en cada
+  # build, asi que la parte de red no cuesta nada (b4rrhh/workspace#4).
+  CONTRATO: http://192.168.1.104:3000/api/v1/repos/b4rrhh/backend/raw/openapi/personnel-administration-api.yaml?ref=main
 
 jobs:
   deploy:
@@ -51,16 +55,31 @@ jobs:
           # lint:colors es el candado del sistema de color (#2): tumba el build
           # si vuelve a colarse una clase de la paleta de Tailwind
           # (text-slate-400, bg-sky-950...) en src/.
+          #
+          # Los dos candados del contrato (b4rrhh/workspace#4) son dos, y no uno,
+          # porque este repositorio tiene dos saltos que se pueden desincronizar:
+          # api:check pide a Gitea el contrato de main del backend y compara con
+          # el .yaml versionado aqui; api:check:types regenera schema.d.ts al
+          # lado y lo compara con el commiteado. El frontend solo necesita el
+          # primero, porque alli lo generado no se commitea. El segundo no gasta
+          # red: es el que impide que un artefacto versionado mienta.
           docker create \
             --name "${{ env.NODE }}" \
             --cpus 5 \
             -m 4g \
             -e CI=true \
             -e TZ=Europe/Madrid \
+            -e CONTRACT_URL="${{ env.CONTRATO }}" \
+            -e CONTRACT_TOKEN="${{ secrets.CONTRACT_TOKEN }}" \
             -v b4rrhh-npm:/root/.npm \
             -w /app \
             node:22-alpine \
-            sh -c "npm ci && npm run lint:colors && npm run build && npm test"
+            sh -c "npm ci \
+                   && npm run lint:colors \
+                   && npm run api:check \
+                   && npm run api:check:types \
+                   && npm run build \
+                   && npm test"
 
           # El "/." copia el CONTENIDO: docker create -w /app ya ha creado /app,
           # y sin el la carpeta entraria dentro (/app/designer/...).

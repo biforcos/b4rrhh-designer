@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "api:check": "node ./tools/openapi/check-contract.mjs",
+    "api:check:types": "node ./tools/openapi/check-types.mjs",
     "api:pull": "node ./tools/openapi/pull-contract.mjs",
     "api:generate": "node ./tools/openapi/generate-types.mjs",
     "api:refresh": "npm run api:pull && npm run api:generate",
