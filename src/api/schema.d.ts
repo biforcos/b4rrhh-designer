@@ -1972,6 +1972,9 @@ export interface components {
             /** @description The base literal that is being served meanwhile. */
             name: string;
         };
+        RuleEntityErrorResponse: {
+            message: string;
+        };
         RuleEntityTranslationErrorResponse: {
             code: string;
             message: string;
@@ -2016,14 +2019,25 @@ export interface components {
              * @description Expanded candidate calculation units after presence overlap resolution for the payroll month.
              */
             totalCandidates: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Accumulator, not a total: it rises for every unit that passes the eligibility filter, and it includes the ones later skipped for missing input or ending in error. The denominator of any percentage is totalCandidates.
+             */
             totalEligible: number;
             /** Format: int32 */
             totalClaimed: number;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Skipped because an immutable payroll already existed. Expected on a relaunch; asks nothing of anybody. Not counted in totalEligible.
+             */
             totalSkippedNotEligible: number;
             /** Format: int32 */
             totalSkippedAlreadyClaimed: number;
+            /**
+             * Format: int32
+             * @description Eligible and could not be calculated because input was missing. Always asks someone to look. Counted in totalEligible and in totalClaimed.
+             */
+            totalSkippedMissingInput: number;
             /** Format: int32 */
             totalCalculated: number;
             /** Format: int32 */
@@ -6881,6 +6895,19 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RuleEntityResponse"];
+                };
+            };
+            /**
+             * @description The rule system or the rule entity type does not exist, the business key is already
+             *     taken, or the type declares required extensions and is therefore maintained by its
+             *     own endpoint (backend#88). In that last case the message names the collection to use.
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleEntityErrorResponse"];
                 };
             };
         };
