@@ -3836,6 +3836,11 @@ export interface components {
             hourlyValue?: number | null;
             active?: boolean | null;
         };
+        /** @description Rejection of a metamodel validity window that does not cover whole natural periods. */
+        MetamodelValidityErrorResponse: {
+            /** @description Names the field, the value received and the day that was expected. A mute 400 would leave the caller guessing whether the problem is the day, the month or the order of the two dates. */
+            message: string;
+        };
         TableRowResponse: {
             /** Format: int64 */
             id?: number;
@@ -8708,6 +8713,15 @@ export interface operations {
                     "application/json": components["schemas"]["ConceptFeedResponse"][];
                 };
             };
+            /** @description The validity window does not cover whole natural periods. An execution loads its rulebook once, asking for a single date (ADR-061), so a window that cuts a period in half would silently apply the wrong rules. The message names the field, the value received and the day expected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetamodelValidityErrorResponse"];
+                };
+            };
         };
     };
     listConceptAssignments: {
@@ -8758,6 +8772,15 @@ export interface operations {
                     "application/json": components["schemas"]["ConceptAssignmentResponse"];
                 };
             };
+            /** @description The validity window does not cover whole natural periods. An execution loads its rulebook once, asking for a single date (ADR-061), so a window that cuts a period in half would silently apply the wrong rules. The message names the field, the value received and the day expected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetamodelValidityErrorResponse"];
+                };
+            };
         };
     };
     updateConceptAssignment: {
@@ -8783,6 +8806,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConceptAssignmentResponse"];
+                };
+            };
+            /** @description The validity window does not cover whole natural periods. An execution loads its rulebook once, asking for a single date (ADR-061), so a window that cuts a period in half would silently apply the wrong rules. The message names the field, the value received and the day expected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetamodelValidityErrorResponse"];
                 };
             };
             /** @description Not found */
@@ -9411,6 +9443,15 @@ export interface operations {
                     "application/json": components["schemas"]["TableRowResponse"];
                 };
             };
+            /** @description The validity window does not cover whole natural periods. An execution loads its rulebook once, asking for a single date (ADR-061), so a window that cuts a period in half would silently apply the wrong rules. The message names the field, the value received and the day expected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetamodelValidityErrorResponse"];
+                };
+            };
             /** @description Row already exists */
             409: {
                 headers: {
@@ -9444,6 +9485,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TableRowResponse"];
+                };
+            };
+            /** @description The validity window does not cover whole natural periods. An execution loads its rulebook once, asking for a single date (ADR-061), so a window that cuts a period in half would silently apply the wrong rules. The message names the field, the value received and the day expected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetamodelValidityErrorResponse"];
                 };
             };
             /** @description Row not found */
