@@ -2312,12 +2312,6 @@ export interface components {
             preferredName?: string | null;
         };
         EmployeeResponse: {
-            /**
-             * Format: int64
-             * @deprecated
-             * @description Identificador tecnico de persistencia. No forma parte de la identidad publica del empleado, que es (ruleSystemCode, employeeTypeCode, employeeNumber) segun ADR-004. Se mantiene temporalmente por compatibilidad y se retirara.
-             */
-            id?: number;
             ruleSystemCode: string;
             employeeTypeCode: string;
             employeeNumber: string;
