@@ -1310,6 +1310,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finalize payroll and make it definitive */
+        post: operations["finalizePayroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payrolls/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Temporary stub endpoint to materialize a payroll result
+         * @description Temporary pipeline-validation stub endpoint. This endpoint is not the final payroll engine API and is only used to materialize payroll results during the pre-launch phase. Clients currently provide concepts and context snapshots explicitly so the payroll vertical can be exercised end-to-end before launch orchestration, fake calculator generation, and the real calculation engine are introduced.
+         */
+        post: operations["calculatePayroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/recalculate": {
         parameters: {
             query?: never;
@@ -1336,7 +1373,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk invalidate payrolls */
+        /**
+         * Bulk invalidation workflow for payroll results
+         * @description Synchronous bulk invalidation workflow. Resolves a target employee population, expands to presence-based candidate units, and invalidates all existing CALCULATED payrolls for those units. Protected payrolls (EXPLICIT_VALIDATED or DEFINITIVE) are skipped and counted separately. Already NOT_VALID payrolls are also skipped without error. targetSelection semantics mirror those of the payroll launch endpoint. totalCandidates represents expanded presence-based units, not the raw number of target employees.
+         */
         post: operations["bulkInvalidatePayroll"];
         delete?: never;
         options?: never;
@@ -1355,7 +1395,7 @@ export interface paths {
         put?: never;
         /**
          * Accept a payroll calculation run and return its identity without waiting
-         * @description Returns as soon as the calculation run has been persisted, with status REQUESTED. The calculation runs outside the request; progress is read from GET /payroll/calculation-runs/{runId} and its messages. Runs execute one at a time: a second launch waits in REQUESTED. A launch that does not fit in the queue is persisted as FAILED with a LAUNCH_REJECTED message rather than dropped. Request validation stays synchronous, so a malformed launch answers 400 and leaves no run.
+         * @description Accepts a payroll launch workflow for an explicit target selection and returns as soon as the calculation run has been persisted, with status REQUESTED. The calculation itself runs outside the request: calculating a full workforce takes minutes, and no client or intermediary survives that wait. Progress is read from GET /payroll/calculation- runs/{runId}, whose counters advance while the run is RUNNING, and from GET /payroll/calculation-runs/{runId}/messages. Runs are executed one at a time: a second launch stays in REQUESTED, queued and observable, until the one in flight finishes. If the queue is full the run is persisted as FAILED with a LAUNCH_REJECTED message instead of being silently dropped, so the response always carries the run identity and its real status. Request validation is still synchronous: a malformed launch answers 400 and leaves no run. This V1 contract supports SINGLE_EMPLOYEE, EMPLOYEE_LIST, and ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, and requires payrollPeriodCode in YYYYMM format so the backend can resolve relevant employee presences by month overlap. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, target employees are resolved from the backend as all employees with at least one overlapping presence in the payroll month. totalCandidates represents expanded presence-based calculation units that overlap at least one day of the payroll month, not the raw number of requested or resolved employees. This endpoint coordinates launch execution and persists a calculation run; it is not the final payroll engine API.
          */
         post: operations["launchPayrollCalculation"];
         delete?: never;
@@ -1942,13 +1982,17 @@ export interface components {
             employeeTypeCode: string;
             employeeNumber: string;
         };
+        /** @description Target selection payload. employee is required only for SINGLE_EMPLOYEE. employees is required only for EMPLOYEE_LIST. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD both employee and employees must be null. */
         PayrollLaunchTargetSelectionRequest: {
             selectionType: components["schemas"]["PayrollLaunchTargetSelectionType"];
+            /** @description Required when selectionType is SINGLE_EMPLOYEE. */
             employee?: components["schemas"]["PayrollLaunchEmployeeTargetRequest"] | null;
+            /** @description Required when selectionType is EMPLOYEE_LIST. */
             employees?: components["schemas"]["PayrollLaunchEmployeeTargetRequest"][] | null;
         };
         LaunchPayrollCalculationRequest: {
             ruleSystemCode: string;
+            /** @description V1 launch requires YYYYMM format to resolve relevant employee presences by monthly overlap. */
             payrollPeriodCode: string;
             /** @enum {string} */
             payrollTypeCode: "NORMAL" | "EXTRA";
@@ -1959,20 +2003,32 @@ export interface components {
         PayrollCalculationRunResponse: {
             /** Format: int64 */
             runId: number;
-            status: string;
+            /** @enum {string} */
+            status: "REQUESTED" | "RUNNING" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "FAILED";
             ruleSystemCode: string;
             payrollPeriodCode: string;
             /** @enum {string} */
             payrollTypeCode: "NORMAL" | "EXTRA";
             calculationEngineCode: string;
             calculationEngineVersion: string;
+            /**
+             * Format: int32
+             * @description Expanded candidate calculation units after presence overlap resolution for the payroll month.
+             */
             totalCandidates: number;
+            /** Format: int32 */
             totalEligible: number;
+            /** Format: int32 */
             totalClaimed: number;
+            /** Format: int32 */
             totalSkippedNotEligible: number;
+            /** Format: int32 */
             totalSkippedAlreadyClaimed: number;
+            /** Format: int32 */
             totalCalculated: number;
+            /** Format: int32 */
             totalNotValid: number;
+            /** Format: int32 */
             totalErrors: number;
             /** Format: date-time */
             requestedAt: string;
@@ -2002,29 +2058,59 @@ export interface components {
             payrollPeriodCode?: string | null;
             /** @enum {string|null} */
             payrollTypeCode?: "NORMAL" | "EXTRA" | null;
+            /** Format: int32 */
             presenceNumber?: number | null;
             /** Format: date-time */
             createdAt: string;
         };
+        /** @description Request for bulk payroll invalidation workflow. targetSelection semantics mirror those of the payroll launch endpoint. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, both employee and employees must be null. */
         BulkInvalidatePayrollRequest: {
             ruleSystemCode: string;
+            /** @description Must be in YYYYMM format. Used to resolve presence overlaps for the payroll month. */
             payrollPeriodCode: string;
             /** @enum {string} */
             payrollTypeCode: "NORMAL" | "EXTRA";
+            /** @description Reason code applied to all invalidated payrolls. */
             statusReasonCode: string;
             targetSelection: components["schemas"]["PayrollLaunchTargetSelectionRequest"];
         };
+        /** @description Summary of a completed bulk invalidation workflow. totalCandidates counts presence-based expanded units, not raw target employees. totalFound counts payroll rows actually found for those units. Skipped counters explain everything that was not invalidated. */
         BulkInvalidatePayrollResponse: {
             ruleSystemCode: string;
             payrollPeriodCode: string;
             /** @enum {string} */
             payrollTypeCode: "NORMAL" | "EXTRA";
+            /**
+             * Format: int32
+             * @description Total presence-based candidate units expanded from the target population.
+             */
             totalCandidates: number;
+            /**
+             * Format: int32
+             * @description Payroll rows found in persistence for the candidate units.
+             */
             totalFound: number;
+            /**
+             * Format: int32
+             * @description Payrolls successfully transitioned from CALCULATED to NOT_VALID.
+             */
             totalInvalidated: number;
+            /**
+             * Format: int32
+             * @description Payrolls already in NOT_VALID status, skipped without error.
+             */
             totalSkippedAlreadyNotValid: number;
+            /**
+             * Format: int32
+             * @description Payrolls in EXPLICIT_VALIDATED or DEFINITIVE status, protected from bulk invalidation.
+             */
             totalSkippedProtected: number;
+            /**
+             * Format: int32
+             * @description Candidate units for which no payroll row was found in persistence.
+             */
             totalSkippedNotFound: number;
+            /** @description Status reason code applied to all invalidated payrolls. */
             statusReasonCode: string;
         };
         HireEmployeeRequest: {
@@ -3575,6 +3661,54 @@ export interface components {
             /** Format: date */
             endDate: string;
         };
+        /** @description Temporary stub request used to materialize a payroll result during the pre-launch phase. This schema is intentionally transitional and will be replaced when the real payroll engine input contract is defined. */
+        CalculatePayrollRequest: {
+            ruleSystemCode: string;
+            employeeTypeCode: string;
+            employeeNumber: string;
+            payrollPeriodCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
+            /** Format: int32 */
+            presenceNumber: number;
+            /** @description Initial implementation only accepts CALCULATED or NOT_VALID for calculation output. */
+            status: components["schemas"]["PayrollStatus"];
+            statusReasonCode?: string | null;
+            /** Format: date-time */
+            calculatedAt: string;
+            calculationEngineCode: string;
+            calculationEngineVersion: string;
+            /** @description Temporary stub-provided payroll concepts. In the final calculation flow these lines are expected to be produced by the payroll engine rather than sent as a stable public API payload. */
+            concepts: components["schemas"]["PayrollConceptRequest"][];
+            /** @description Temporary stub-provided context snapshots used to persist supporting payroll context during pipeline validation. This is not the final public engine input shape. */
+            contextSnapshots: components["schemas"]["PayrollContextSnapshotRequest"][];
+        };
+        PayrollConceptRequest: {
+            /** Format: int32 */
+            lineNumber: number;
+            conceptCode: string;
+            conceptLabel: string;
+            /** Format: double */
+            amount: number;
+            /** Format: double */
+            quantity?: number | null;
+            /** Format: double */
+            rate?: number | null;
+            conceptNatureCode: string;
+            originPeriodCode?: string | null;
+            /** Format: int32 */
+            displayOrder: number;
+        };
+        PayrollContextSnapshotRequest: {
+            snapshotTypeCode: string;
+            sourceVerticalCode: string;
+            /** @description JSON serialized business key of the source context. */
+            sourceBusinessKeyJson: string;
+            /** @description JSON serialized snapshot payload. */
+            snapshotPayloadJson: string;
+        };
+        /** @enum {string} */
+        PayrollStatus: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
         PayrollResponse: {
             ruleSystemCode: string;
             employeeTypeCode: string;
@@ -3582,9 +3716,9 @@ export interface components {
             payrollPeriodCode: string;
             /** @enum {string} */
             payrollTypeCode: "NORMAL" | "EXTRA";
+            /** Format: int32 */
             presenceNumber: number;
-            /** @enum {string} */
-            status: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
+            status: components["schemas"]["PayrollStatus"];
             /** Format: date-time */
             calculatedAt: string;
             /**
@@ -3606,8 +3740,8 @@ export interface components {
             /** @description Why the result is in its current status. Null when nothing forced it. */
             statusReasonCode?: string | null;
             /** @description Engine that produced this payroll, as the run recorded it. */
-            calculationEngineCode?: string | null;
-            calculationEngineVersion?: string | null;
+            calculationEngineCode?: string;
+            calculationEngineVersion?: string;
             /** @description Functional warnings attached to this payroll result. They are not the operational messages of the run: those are read from GET /payroll/calculation-runs/{runId}/messages. */
             warnings?: components["schemas"]["PayrollWarningResponse"][];
         };
@@ -8287,6 +8421,111 @@ export interface operations {
             };
         };
     };
+    finalizePayroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                payrollPeriodCode: string;
+                payrollTypeCode: "NORMAL" | "EXTRA";
+                presenceNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payroll finalized */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description Payroll not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description Payroll cannot be finalized from its current status */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+        };
+    };
+    calculatePayroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalculatePayrollRequest"];
+            };
+        };
+        responses: {
+            /** @description Payroll calculated and created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description Employee presence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description Payroll recalculation is not allowed for the current status */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+        };
+    };
     recalculatePayroll: {
         parameters: {
             query?: never;
@@ -8383,7 +8622,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Calculation run accepted */
+            /** @description Calculation run accepted. The run is persisted and its counters are observable while it executes. */
             202: {
                 headers: {
                     [name: string]: unknown;
