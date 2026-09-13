@@ -1353,7 +1353,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Launch a payroll calculation run */
+        /**
+         * Accept a payroll calculation run and return its identity without waiting
+         * @description Returns as soon as the calculation run has been persisted, with status REQUESTED. The calculation runs outside the request; progress is read from GET /payroll/calculation-runs/{runId} and its messages. Runs execute one at a time: a second launch waits in REQUESTED. A launch that does not fit in the queue is persisted as FAILED with a LAUNCH_REJECTED message rather than dropped. Request validation stays synchronous, so a malformed launch answers 400 and leaves no run.
+         */
         post: operations["launchPayrollCalculation"];
         delete?: never;
         options?: never;
@@ -1370,6 +1373,26 @@ export interface paths {
         };
         /** Get a payroll calculation run by ID */
         get: operations["getPayrollCalculationRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/calculation-runs/{runId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List persisted operational messages for a payroll calculation run
+         * @description Returns persisted operational launch messages for the specified payroll calculation run, ordered by createdAt ascending and id ascending.
+         */
+        get: operations["listPayrollCalculationRunMessages"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1953,10 +1976,35 @@ export interface components {
             totalErrors: number;
             /** Format: date-time */
             requestedAt: string;
+            /** @description Subject that requested the run, taken from the authenticated token. Null for in-process launches, which have nobody behind them. */
+            requestedBy?: string | null;
             /** Format: date-time */
             startedAt?: string | null;
             /** Format: date-time */
             finishedAt?: string | null;
+        };
+        PayrollCalculationRunMessagesResponse: {
+            /** Format: int64 */
+            runId: number;
+            items: components["schemas"]["PayrollCalculationRunMessageResponse"][];
+        };
+        PayrollCalculationRunMessageResponse: {
+            messageCode: string;
+            /** @description Literal del codigo en el idioma de Accept-Language, resuelto del catalogo PAYROLL_RUN_MESSAGE (backend#81). Nulo si el codigo no esta sembrado: la pantalla pinta entonces el codigo desnudo, que es feo y honesto. */
+            messageCodeName?: string | null;
+            severityCode: string;
+            message: string;
+            /** @description JSON payload serialized as string with technical details for diagnostics. */
+            detailsJson?: string | null;
+            ruleSystemCode?: string | null;
+            employeeTypeCode?: string | null;
+            employeeNumber?: string | null;
+            payrollPeriodCode?: string | null;
+            /** @enum {string|null} */
+            payrollTypeCode?: "NORMAL" | "EXTRA" | null;
+            presenceNumber?: number | null;
+            /** Format: date-time */
+            createdAt: string;
         };
         BulkInvalidatePayrollRequest: {
             ruleSystemCode: string;
@@ -2024,11 +2072,11 @@ export interface components {
             /** Format: date */
             hireDate: string;
             initialPresence: components["schemas"]["HiredPresenceResponse"];
+            /** @description What the hire just created, not the employee's card: the code, not the label. The name is resolved by the work center vertical's own read endpoints, which is where the language of the response reaches the resolver (ADR-052 §4; backend#36). */
             initialWorkCenter: {
                 /** Format: date */
                 startDate: string;
                 workCenterCode: string;
-                workCenterName?: string | null;
             };
             costCenter?: components["schemas"]["CostCenterDistributionWindowResponse"];
             initialContract: {
@@ -2264,8 +2312,12 @@ export interface components {
             preferredName?: string | null;
         };
         EmployeeResponse: {
-            /** Format: int64 */
-            id: number;
+            /**
+             * Format: int64
+             * @deprecated
+             * @description Identificador tecnico de persistencia. No forma parte de la identidad publica del empleado, que es (ruleSystemCode, employeeTypeCode, employeeNumber) segun ADR-004. Se mantiene temporalmente por compatibilidad y se retirara.
+             */
+            id?: number;
             ruleSystemCode: string;
             employeeTypeCode: string;
             employeeNumber: string;
@@ -3541,6 +3593,11 @@ export interface components {
             status: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
             /** Format: date-time */
             calculatedAt: string;
+            /**
+             * Format: int64
+             * @description Calculation run that produced this payroll. Null means no registered execution produced it, which is the case for the temporary calculate stub and for the ad-hoc recalculation of a single payroll.
+             */
+            runId?: number | null;
             concepts: components["schemas"]["PayrollConceptResponse"][];
             contextSnapshots?: components["schemas"]["PayrollContextSnapshotResponse"][];
             companyProfile?: components["schemas"]["PayrollCompanyProfileResponse"];
@@ -3552,6 +3609,21 @@ export interface components {
             presenceEndDate?: string;
             workCenterCode?: string;
             workCenterName?: string;
+            /** @description Why the result is in its current status. Null when nothing forced it. */
+            statusReasonCode?: string | null;
+            /** @description Engine that produced this payroll, as the run recorded it. */
+            calculationEngineCode?: string | null;
+            calculationEngineVersion?: string | null;
+            /** @description Functional warnings attached to this payroll result. They are not the operational messages of the run: those are read from GET /payroll/calculation-runs/{runId}/messages. */
+            warnings?: components["schemas"]["PayrollWarningResponse"][];
+        };
+        /** @description Functional payroll warning attached to a payroll result. Distinct from launch/run operational messages. */
+        PayrollWarningResponse: {
+            warningCode: string;
+            /** @description Intended severities are INFO, WARNING, and ERROR. */
+            severityCode: string;
+            message: string;
+            detailsJson?: string | null;
         };
         PayrollContextSnapshotResponse: {
             snapshotTypeCode?: string;
@@ -8312,8 +8384,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Calculation run created */
-            201: {
+            /** @description Calculation run accepted */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8344,6 +8416,46 @@ export interface operations {
                 };
             };
             /** @description Calculation run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+        };
+    };
+    listPayrollCalculationRunMessages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Persisted payroll calculation run messages */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollCalculationRunMessagesResponse"];
+                };
+            };
+            /** @description Invalid run identifier */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description Payroll calculation run not found */
             404: {
                 headers: {
                     [name: string]: unknown;

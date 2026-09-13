@@ -3136,7 +3136,7 @@ paths:
           required: false
           schema:
             type: string
-            maxLength: 30
+            maxLength: 50
         - in: query
           name: active
           required: false
@@ -3184,7 +3184,7 @@ paths:
           required: true
           schema:
             type: string
-            maxLength: 30
+            maxLength: 50
         - in: path
           name: startDate
           required: true
@@ -3227,7 +3227,7 @@ paths:
           required: true
           schema:
             type: string
-            maxLength: 30
+            maxLength: 50
         - in: path
           name: startDate
           required: true
@@ -3279,7 +3279,7 @@ paths:
           required: true
           schema:
             type: string
-            maxLength: 30
+            maxLength: 50
         - in: path
           name: startDate
           required: true
@@ -3321,7 +3321,7 @@ paths:
           required: true
           schema:
             type: string
-            maxLength: 30
+            maxLength: 50
         - in: path
           name: startDate
           required: true
@@ -4781,7 +4781,13 @@ paths:
 
   /payroll/calculation-runs/launch:
     post:
-      summary: Launch a payroll calculation run
+      summary: Accept a payroll calculation run and return its identity without waiting
+      description: >
+        Returns as soon as the calculation run has been persisted, with status REQUESTED. The
+        calculation runs outside the request; progress is read from GET /payroll/calculation-runs/{runId}
+        and its messages. Runs execute one at a time: a second launch waits in REQUESTED. A launch that
+        does not fit in the queue is persisted as FAILED with a LAUNCH_REJECTED message rather than
+        dropped. Request validation stays synchronous, so a malformed launch answers 400 and leaves no run.
       operationId: launchPayrollCalculation
       tags:
         - Payroll Calculation Run
@@ -4792,8 +4798,8 @@ paths:
             schema:
               $ref: "#/components/schemas/LaunchPayrollCalculationRequest"
       responses:
-        "201":
-          description: Calculation run created
+        "202":
+          description: Calculation run accepted
           content:
             application/json:
               schema:
@@ -4821,6 +4827,40 @@ paths:
                 $ref: "#/components/schemas/PayrollCalculationRunResponse"
         "404":
           description: Calculation run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollErrorResponse"
+
+  /payroll/calculation-runs/{runId}/messages:
+    get:
+      summary: List persisted operational messages for a payroll calculation run
+      description: Returns persisted operational launch messages for the specified payroll calculation run, ordered by createdAt ascending and id ascending.
+      operationId: listPayrollCalculationRunMessages
+      tags:
+        - Payroll Calculation Run
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Persisted payroll calculation run messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollCalculationRunMessagesResponse"
+        "400":
+          description: Invalid run identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollErrorResponse"
+        "404":
+          description: Payroll calculation run not found
           content:
             application/json:
               schema:
@@ -6360,6 +6400,10 @@ components:
         requestedAt:
           type: string
           format: date-time
+        requestedBy:
+          type: string
+          nullable: true
+          description: Subject that requested the run, taken from the authenticated token. Null for in-process launches, which have nobody behind them.
         startedAt:
           type: string
           format: date-time
@@ -6368,6 +6412,68 @@ components:
           type: string
           format: date-time
           nullable: true
+
+    PayrollCalculationRunMessagesResponse:
+      type: object
+      required:
+        - runId
+        - items
+      properties:
+        runId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayrollCalculationRunMessageResponse"
+
+    PayrollCalculationRunMessageResponse:
+      type: object
+      required:
+        - messageCode
+        - severityCode
+        - message
+        - createdAt
+      properties:
+        messageCode:
+          type: string
+        messageCodeName:
+          type: string
+          nullable: true
+          description: >-
+            Literal del codigo en el idioma de Accept-Language, resuelto del catalogo
+            PAYROLL_RUN_MESSAGE (backend#81). Nulo si el codigo no esta sembrado: la
+            pantalla pinta entonces el codigo desnudo, que es feo y honesto.
+        severityCode:
+          type: string
+        message:
+          type: string
+        detailsJson:
+          type: string
+          nullable: true
+          description: JSON payload serialized as string with technical details for diagnostics.
+        ruleSystemCode:
+          type: string
+          nullable: true
+        employeeTypeCode:
+          type: string
+          nullable: true
+        employeeNumber:
+          type: string
+          nullable: true
+        payrollPeriodCode:
+          type: string
+          nullable: true
+        payrollTypeCode:
+          type: string
+          enum: [NORMAL, EXTRA]
+          nullable: true
+        presenceNumber:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
 
     BulkInvalidatePayrollRequest:
       type: object
@@ -6580,6 +6686,11 @@ components:
           $ref: "#/components/schemas/HiredPresenceResponse"
         initialWorkCenter:
           type: object
+          description: >-
+            What the hire just created, not the employee's card: the code, not
+            the label. The name is resolved by the work center vertical's own
+            read endpoints, which is where the language of the response reaches
+            the resolver (ADR-052 §4; backend#36).
           required:
             - startDate
             - workCenterCode
@@ -6589,9 +6700,6 @@ components:
               format: date
             workCenterCode:
               type: string
-            workCenterName:
-              type: string
-              nullable: true
         costCenter:
           $ref: "#/components/schemas/CostCenterDistributionWindowResponse"
         initialContract:
@@ -7225,7 +7333,6 @@ components:
     EmployeeResponse:
       type: object
       required:
-        - id
         - ruleSystemCode
         - employeeTypeCode
         - employeeNumber
@@ -7237,6 +7344,11 @@ components:
         id:
           type: integer
           format: int64
+          deprecated: true
+          description: >-
+            Identificador tecnico de persistencia. No forma parte de la identidad publica del
+            empleado, que es (ruleSystemCode, employeeTypeCode, employeeNumber) segun ADR-004.
+            Se mantiene temporalmente por compatibilidad y se retirara.
         ruleSystemCode:
           type: string
         employeeTypeCode:
@@ -9142,7 +9254,7 @@ components:
       properties:
         code:
           type: string
-          maxLength: 30
+          maxLength: 50
         name:
           type: string
           maxLength: 100
@@ -9162,7 +9274,7 @@ components:
       properties:
         code:
           type: string
-          maxLength: 30
+          maxLength: 50
         name:
           type: string
           maxLength: 100
@@ -9228,7 +9340,7 @@ components:
       properties:
         code:
           type: string
-          maxLength: 30
+          maxLength: 50
         name:
           type: string
           maxLength: 100
@@ -9271,7 +9383,7 @@ components:
       properties:
         code:
           type: string
-          maxLength: 30
+          maxLength: 50
         name:
           type: string
           maxLength: 100
@@ -9996,7 +10108,7 @@ components:
           maxLength: 30
         code:
           type: string
-          maxLength: 30
+          maxLength: 50
         name:
           type: string
           maxLength: 100
@@ -10097,6 +10209,14 @@ components:
         calculatedAt:
           type: string
           format: date-time
+        runId:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            Calculation run that produced this payroll. Null means no registered
+            execution produced it, which is the case for the temporary calculate
+            stub and for the ad-hoc recalculation of a single payroll.
         concepts:
           type: array
           items:
@@ -10121,6 +10241,50 @@ components:
           type: string
         workCenterName:
           type: string
+        statusReasonCode:
+          type: string
+          nullable: true
+          description: Why the result is in its current status. Null when nothing forced it.
+        calculationEngineCode:
+          type: string
+          nullable: true
+          description: Engine that produced this payroll, as the run recorded it.
+        calculationEngineVersion:
+          type: string
+          nullable: true
+        warnings:
+          type: array
+          description: >-
+            Functional warnings attached to this payroll result. They are not the
+            operational messages of the run: those are read from
+            GET /payroll/calculation-runs/{runId}/messages.
+          items:
+            $ref: '#/components/schemas/PayrollWarningResponse'
+
+    PayrollWarningResponse:
+      type: object
+      description: >-
+        Functional payroll warning attached to a payroll result. Distinct from
+        launch/run operational messages.
+      required:
+        - warningCode
+        - severityCode
+        - message
+      properties:
+        warningCode:
+          type: string
+          maxLength: 50
+        severityCode:
+          type: string
+          maxLength: 20
+          description: Intended severities are INFO, WARNING, and ERROR.
+        message:
+          type: string
+          maxLength: 500
+        detailsJson:
+          type: string
+          nullable: true
+
     PayrollContextSnapshotResponse:
       type: object
       properties:
