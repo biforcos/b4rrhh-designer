@@ -3749,6 +3749,11 @@ export interface components {
             presenceStartDate?: string;
             /** Format: date */
             presenceEndDate?: string;
+            /**
+             * Format: date
+             * @description Seniority of the employee, as a date: the start of their earliest presence, gaps included, so a rehired employee keeps the seniority of the first hire. This is NOT presenceStartDate, which is the start of the presence this payroll belongs to; for a rehired employee the two differ. It is a date and not a duration on purpose: a duration depends on when you count up to, and the employee record counts to today while an April payslip has to count to April. Null on payrolls calculated before the snapshot carried it, and null means "not known": do not substitute presenceStartDate.
+             */
+            seniorityDate?: string | null;
             workCenterCode?: string;
             workCenterName?: string;
             /** @description Why the result is in its current status. Null when nothing forced it. */
