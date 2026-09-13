@@ -8,7 +8,7 @@ import { DeletableEdge } from './edges/DeletableEdge'
 import { useConceptGraph } from './useConceptsQuery'
 import type { ConceptFlowNode, ConceptFlowEdge, EdgeFocus, FunctionalNature } from './types'
 import { CreateConceptDrawer } from './CreateConceptDrawer'
-import { useSaveGraph } from './useSaveGraph'
+import { useSaveGraph, GraphSaveError } from './useSaveGraph'
 import { CanvasLegend, NatureSwatch } from './CanvasLegend'
 import { CanvasGrid } from './CanvasGrid'
 import { savePositions, loadPositionsOrLayout } from './graphPositions'
@@ -40,7 +40,7 @@ const MODAL = 'fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-
 export function CanvasPage() {
   const { ruleSystemCode } = useRuleSystemStore()
   const queryClient = useQueryClient()
-  const { data, isLoading } = useConceptGraph(ruleSystemCode)
+  const { data, isLoading, isError, error, refetch, isFetching } = useConceptGraph(ruleSystemCode)
   const [nodes, setNodes, onNodesChange] = useNodesState<ConceptFlowNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<ConceptFlowEdge>([])
   const [selectedNode, setSelectedNode] = useState<ConceptFlowNode | null>(null)
@@ -174,6 +174,29 @@ export function CanvasPage() {
   }, [edges, selectedNode, focusedEdgeIds, ancestorEdgeIds])
 
   if (isLoading) return <div className="flex items-center justify-center h-full text-text-tertiary">Cargando grafo...</div>
+
+  // Un lienzo vacio significaba dos cosas a la vez: «este sistema de reglas no tiene conceptos» y
+  // «la carga ha fallado». La segunda se dice (`designer#9`).
+  if (isError) {
+    return (
+      <div
+        role="alert"
+        className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center"
+      >
+        <p className="text-error-text text-sm font-medium">No se ha podido cargar el grafo.</p>
+        <p className="text-text-tertiary text-xs max-w-md">
+          Esto no quiere decir que <span className="font-mono">{ruleSystemCode}</span> no tenga
+          conceptos: quiere decir que no se sabe cuáles tiene.
+        </p>
+        <p className="text-text-tertiary text-xs font-mono">
+          {error instanceof Error ? error.message : 'Error desconocido'}
+        </p>
+        <button type="button" onClick={() => refetch()} disabled={isFetching} className={BUTTON}>
+          {isFetching ? 'Reintentando...' : 'Reintentar'}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full">
@@ -353,6 +376,58 @@ export function CanvasPage() {
         </>
       )}
 
+      {/* El guardado que falla se dice, y dice que se guardo y que no: es una llamada por nodo y
+          sin transaccion, asi que «ha fallado» a secas obligaria a adivinar (`designer#9`). */}
+      {saveGraph.isError && (
+        <>
+          <div className="fixed inset-0 z-50 bg-surface-overlay" onClick={() => saveGraph.reset()} />
+          <div role="alert" className={`${MODAL} w-[460px]`}>
+            <p className="text-sm font-medium text-error-text mb-1">El grafo no se ha guardado entero.</p>
+
+            {saveGraph.error instanceof GraphSaveError ? (
+              <>
+                <p className="text-xs text-text-secondary mb-3">
+                  {saveGraph.error.guardados.length > 0
+                    ? `Se han guardado ${saveGraph.error.guardados.length} conceptos y han fallado ${saveGraph.error.fallidos.length}. Lo que hay en la base no es lo que ves en el lienzo.`
+                    : `Han fallado los ${saveGraph.error.fallidos.length} conceptos: no se ha guardado nada.`}
+                </p>
+                <p className="text-[10px] uppercase tracking-wide text-error-text font-semibold mb-1.5">
+                  No se han guardado
+                </p>
+                <ul className="space-y-1 max-h-48 overflow-y-auto">
+                  {saveGraph.error.fallidos.map(f => (
+                    <li
+                      key={f.conceptCode}
+                      className="text-xs text-error-text bg-error-bg border border-error-border rounded-sm px-2 py-1"
+                    >
+                      <span className="font-mono font-semibold">{f.conceptCode}</span> — {f.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="text-xs text-error-text bg-error-bg border border-error-border rounded-sm px-2 py-1 mt-2">
+                {saveGraph.error instanceof Error ? saveGraph.error.message : 'Error desconocido'}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button type="button" onClick={() => saveGraph.reset()} className={BUTTON}>
+                Cerrar
+              </button>
+              <button
+                type="button"
+                disabled={saveGraph.isPending}
+                onClick={() => saveGraph.mutate({ nodes: nodes.filter(n => !n.hidden), edges })}
+                className={BUTTON_PRIMARY}
+              >
+                {saveGraph.isPending ? 'Guardando...' : 'Reintentar'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {summaryEditTarget && (
         <>
           <div className="fixed inset-0 z-50 bg-surface-overlay" onClick={() => setSummaryEditTarget(null)} />
@@ -368,6 +443,16 @@ export function CanvasPage() {
               placeholder="Descripción funcional del concepto..."
               autoFocus
             />
+            {/* El otro «Guardar» de esta pantalla, y callaba igual: al fallar, el boton volvia de
+                «Guardando...» y el cajon se quedaba abierto sin decir por que (`designer#9`). */}
+            {updateSummaryMutation.isError && (
+              <p role="alert" className="text-error-text text-xs mt-2">
+                No se ha guardado el summary:{' '}
+                {updateSummaryMutation.error instanceof Error
+                  ? updateSummaryMutation.error.message
+                  : 'error desconocido'}
+              </p>
+            )}
             <div className="flex justify-end gap-2 mt-3">
               <button
                 type="button"
