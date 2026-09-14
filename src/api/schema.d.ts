@@ -3832,22 +3832,22 @@ export interface components {
              * Format: int32
              * @description Position of this step in the engine execution plan, starting at 1. This is the row identity and the sort key of the response.
              */
-            executionOrder?: number;
+            executionOrder: number;
             /** @description Engine concept code. Not unique within the response: a SEGMENT scoped concept appears once per segment. */
-            conceptCode?: string;
-            conceptMnemonic?: string;
+            conceptCode: string;
+            conceptMnemonic: string;
             /** @description DIRECT_AMOUNT, RATE_BY_QUANTITY, PERCENTAGE, AGGREGATE, LEAST, GREATEST, ENGINE_PROVIDED or EMPLOYEE_INPUT */
-            calculationType?: string;
+            calculationType: string;
             /** @description EARNING, DEDUCTION, BASE, TECHNICAL, INFORMATIONAL, TOTAL_EARNING, TOTAL_DEDUCTION or NET_PAY */
-            functionalNature?: string;
+            functionalNature: string;
             /** @description PERIOD when the step covers the whole period, and then it carries no segment dates. Any other scope always carries both. The scope is explicit and must not be inferred from the dates being absent. */
-            executionScope?: string;
+            executionScope: string;
             /** Format: date */
             segmentStartDate?: string | null;
             /** Format: date */
             segmentEndDate?: string | null;
             /** Format: double */
-            amount?: number;
+            amount: number;
             /** Format: double */
             quantity?: number | null;
             /** Format: double */
