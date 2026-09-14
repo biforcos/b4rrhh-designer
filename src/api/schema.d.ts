@@ -1278,6 +1278,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calculation steps the engine took to produce this payroll, in execution order
+         * @description The steps behind a payslip, in the order the engine executed them. This is the explanation, not the document: it carries every concept the engine evaluated, including the BASE and TECHNICAL ones that never reach the payslip.
+         *     Items are ordered by executionOrder and that order is the whole point of this endpoint. Reordering by payslipOrderCode, by functional nature or by concept code destroys what it serves: the amount list ordered for print already exists and it is the payroll itself.
+         *     The row identity is executionOrder, never conceptCode. A SEGMENT scoped concept is evaluated once per segment, so an employee whose working time changes mid-month carries concept 101 twice, with two segments and two rates. Any client that indexes or groups by conceptCode shows one and silently drops the other.
+         *     payslipOrderCode is null when that step did not reach the payslip. It is served so a client can mark the payslip lines without crossing two lists or guessing from the functional nature.
+         *     An existing payroll with no steps at all answers 200 with an empty array, and that is a real and frequent case: every payroll calculated before the payroll_calculation_step table existed has none, and old payrolls without steps will always exist. An empty array means "this payroll was calculated before the engine stored its steps", never "this payroll has no concepts", and it is never filled in by deriving steps from the payslip lines.
+         */
+        get: operations["listPayrollCalculationSteps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/invalidate": {
         parameters: {
             query?: never;
@@ -3801,6 +3825,35 @@ export interface components {
         };
         InvalidatePayrollRequest: {
             statusReasonCode: string;
+        };
+        /** @description One evaluation the engine performed while calculating a payroll. Identified by executionOrder within the payroll, never by conceptCode: the same concept can appear more than once when it is evaluated per segment. */
+        PayrollCalculationStepResponse: {
+            /**
+             * Format: int32
+             * @description Position of this step in the engine execution plan, starting at 1. This is the row identity and the sort key of the response.
+             */
+            executionOrder?: number;
+            /** @description Engine concept code. Not unique within the response: a SEGMENT scoped concept appears once per segment. */
+            conceptCode?: string;
+            conceptMnemonic?: string;
+            /** @description DIRECT_AMOUNT, RATE_BY_QUANTITY, PERCENTAGE, AGGREGATE, LEAST, GREATEST, ENGINE_PROVIDED or EMPLOYEE_INPUT */
+            calculationType?: string;
+            /** @description EARNING, DEDUCTION, BASE, TECHNICAL, INFORMATIONAL, TOTAL_EARNING, TOTAL_DEDUCTION or NET_PAY */
+            functionalNature?: string;
+            /** @description PERIOD when the step covers the whole period, and then it carries no segment dates. Any other scope always carries both. The scope is explicit and must not be inferred from the dates being absent. */
+            executionScope?: string;
+            /** Format: date */
+            segmentStartDate?: string | null;
+            /** Format: date */
+            segmentEndDate?: string | null;
+            /** Format: double */
+            amount?: number;
+            /** Format: double */
+            quantity?: number | null;
+            /** Format: double */
+            rate?: number | null;
+            /** @description Payslip print order of this concept, or null when this step never reached the payslip. Steps include bases and technical values, so the amount column must not be summed: the totals are the payroll totals and only come from the payslip lines. */
+            payslipOrderCode?: string | null;
         };
         PayrollConceptResponse: {
             lineNumber: number;
@@ -8346,6 +8399,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PayrollResponse"];
+                };
+            };
+            /** @description Payroll not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+        };
+    };
+    listPayrollCalculationSteps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                payrollPeriodCode: string;
+                payrollTypeCode: "NORMAL" | "EXTRA";
+                presenceNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Calculation steps in execution order. An empty array means the payroll exists and was calculated before the engine stored its steps. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollCalculationStepResponse"][];
                 };
             };
             /** @description Payroll not found */
