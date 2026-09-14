@@ -20,8 +20,16 @@ const ROLE_TO_HANDLE: Record<string, string> = {
   PCT:        'pct',
 }
 
-export function useConceptGraph(ruleSystemCode: string) {
+/**
+ * El grafo de conceptos de un sistema de reglas.
+ *
+ * `enabled` existe por el modo recibo: cuando la direccion de la URL no puede ser la de ningun
+ * recibo no hay sistema de reglas que pedir, y preguntar por uno vacio seria una llamada que se
+ * sabe fallida (`designer#8`).
+ */
+export function useConceptGraph(ruleSystemCode: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['concepts', ruleSystemCode],
     queryFn: async () => {
       const concepts = await conceptsApi.listConcepts(ruleSystemCode)

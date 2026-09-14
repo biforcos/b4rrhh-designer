@@ -25,3 +25,15 @@ export const BACKOFFICE_HOME = '/'
  * para el arranque en frio, pero no es adonde se redirige.
  */
 export const BACKOFFICE_LOGIN = '/login'
+
+/**
+ * La ruta del modo recibo: el mismo lienzo, abierto para un recibo concreto (`designer#8`).
+ *
+ * Las seis partes son la clave de negocio del recibo (`frontend#64`), y el numero de presencia va
+ * en la URL porque no se puede suponer: `EMP000001` tiene el suyo en la presencia 2.
+ *
+ * Cuelga fuera del `AppShell` a proposito: esto se ve dentro de un marco, y una barra de
+ * navegacion dentro de un marco es ruido que lleva a sitios que el marco no sabe ensenar.
+ */
+export const RECEIPT_ROUTE_PATH =
+  'recibo/:ruleSystemCode/:employeeTypeCode/:employeeNumber/:payrollPeriodCode/:payrollTypeCode/:presenceNumber'

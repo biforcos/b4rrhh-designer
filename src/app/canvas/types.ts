@@ -1,4 +1,5 @@
 import type { Node, Edge } from '@xyflow/react'
+import type { ReceiptNodeValue } from '../receipt/receiptValues'
 
 export type CalculationType = 'DIRECT_AMOUNT' | 'RATE_BY_QUANTITY' | 'PERCENTAGE' | 'AGGREGATE' | 'JAVA_PROVIDED' | 'ENGINE_PROVIDED' | 'EMPLOYEE_INPUT' | 'GREATEST' | 'LEAST'
 export type FunctionalNature = 'EARNING' | 'DEDUCTION' | 'BASE' | 'INFORMATIONAL' | 'TECHNICAL' | 'TOTAL_EARNING' | 'TOTAL_DEDUCTION' | 'NET_PAY'
@@ -14,6 +15,14 @@ export interface ConceptNodeData extends Record<string, unknown> {
   summary: string | null
   isDirty?: boolean
   onEditSummary?: (conceptCode: string) => void
+  /**
+   * Lo que un recibo concreto dice de este concepto, o `undefined` fuera del modo recibo.
+   *
+   * `undefined` y `{ kind: 'absent' }` son dos cosas distintas y el nodo las pinta distinto:
+   * la primera es «aquí no estamos mirando un recibo» y la segunda, «este concepto no participó
+   * en el que estamos mirando» (`designer#8`).
+   */
+  receipt?: ReceiptNodeValue
   dimmed?: boolean
   neighborHighlight?: boolean
   ancestorHighlight?: boolean
