@@ -7,10 +7,19 @@ import { CreateTableModal } from './CreateTableModal'
 
 type Tab = 'CONSTANT' | 'TABLE'
 
+/**
+ * La pestana TABLE lista `payroll_object` de tipo TABLE, y eso no son tablas:
+ * son *ranuras*. El motor usa su codigo como rol de vinculacion para resolver,
+ * por convenio, que tabla de verdad le toca (`payroll.payroll_object_binding`).
+ * Se llaman ranuras desde el `b4rrhh/designer#10`, porque llamarlas «Tablas»
+ * hacia creer que los importes del recibo estaban ahi dentro y que se podian
+ * tocar. El tipo del contrato sigue siendo TABLE y no se toca.
+ */
+
 export function ObjectsPage() {
   const { ruleSystemCode } = useRuleSystemStore()
   const [tab, setTab] = useState<Tab>('CONSTANT')
-  const [selectedTable, setSelectedTable] = useState<string | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
   const [createTableOpen, setCreateTableOpen] = useState(false)
 
   const { data = [], isLoading } = useQuery({
@@ -20,12 +29,12 @@ export function ObjectsPage() {
 
   function handleTabChange(t: Tab) {
     setTab(t)
-    setSelectedTable(null)
+    setSelectedSlot(null)
   }
 
   function handleRowClick(obj: PayrollObjectDto) {
     if (tab === 'TABLE') {
-      setSelectedTable(prev => prev === obj.objectCode ? null : obj.objectCode)
+      setSelectedSlot(prev => prev === obj.objectCode ? null : obj.objectCode)
     }
   }
 
@@ -47,7 +56,7 @@ export function ObjectsPage() {
                     : 'bg-surface-panel border-border-default text-text-secondary hover:text-text-primary'
                 }`}
               >
-                {t === 'CONSTANT' ? 'Constantes' : 'Tablas'}
+                {t === 'CONSTANT' ? 'Constantes' : 'Ranuras'}
               </button>
             ))}
           </div>
@@ -57,7 +66,7 @@ export function ObjectsPage() {
               onClick={() => setCreateTableOpen(true)}
               className="text-[10px] px-2 py-1 bg-surface-panel border border-border-default text-text-secondary rounded-sm hover:bg-surface-hover hover:text-text-primary"
             >
-              + Nueva
+              + Nueva ranura
             </button>
           )}
         </div>
@@ -81,7 +90,7 @@ export function ObjectsPage() {
                     onClick={() => handleRowClick(obj)}
                     className={`border-b border-border-default transition-colors ${
                       tab === 'TABLE'
-                        ? selectedTable === obj.objectCode
+                        ? selectedSlot === obj.objectCode
                           ? 'bg-surface-accent cursor-pointer'
                           : 'hover:bg-surface-hover cursor-pointer'
                         : ''
@@ -102,11 +111,11 @@ export function ObjectsPage() {
       </div>
 
       {/* Right: row panel (only for TABLE tab) */}
-      {tab === 'TABLE' && selectedTable ? (
-        <TableRowPanel ruleSystemCode={ruleSystemCode} tableCode={selectedTable} />
+      {tab === 'TABLE' && selectedSlot ? (
+        <TableRowPanel ruleSystemCode={ruleSystemCode} tableCode={selectedSlot} />
       ) : tab === 'TABLE' ? (
         <div className="flex-1 flex items-center justify-center text-text-tertiary text-xs">
-          Selecciona una tabla para ver sus filas
+          Selecciona una ranura para ver a qué se ata
         </div>
       ) : null}
 

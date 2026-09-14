@@ -5,7 +5,7 @@ import { tableRowsApi, type TableRowDto } from './api/tableRowsApi'
 interface Props {
   ruleSystemCode: string
   tableCode: string
-  row: TableRowDto | null  // null = create mode
+  row: TableRowDto
   onClose: () => void
 }
 
@@ -18,10 +18,6 @@ interface FormState {
   dailyValue: string
   hourlyValue: string
   active: boolean
-}
-
-function emptyForm(): FormState {
-  return { searchCode: '', startDate: '', endDate: '', monthlyValue: '', annualValue: '', dailyValue: '', hourlyValue: '', active: true }
 }
 
 function rowToForm(row: TableRowDto): FormState {
@@ -37,17 +33,26 @@ function rowToForm(row: TableRowDto): FormState {
   }
 }
 
+/**
+ * Edita una fila que ya existe. Y solo eso.
+ *
+ * Tenia modo alta (`row === null`) y lo perdio en el `b4rrhh/designer#10`: la
+ * unica pantalla que lo abria era la de una ranura, y una fila dada de alta
+ * contra el codigo de una ranura se guarda, se pinta y el motor no la lee
+ * jamas. No se ha inhabilitado el boton: no hay por donde. Cuando se puedan
+ * listar las tablas de verdad (`b4rrhh/backend#95`), el alta vuelve — alli, y
+ * contra el codigo de una tabla que alguien lee.
+ */
 export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props) {
   const qc = useQueryClient()
-  const [form, setForm] = useState<FormState>(row ? rowToForm(row) : emptyForm())
+  const [form, setForm] = useState<FormState>(rowToForm(row))
 
-  // El formulario sigue a la fila que se edita, y se vacia cuando es un alta. Ajustar el estado
-  // durante el render es lo que documenta React para esto: en un efecto obliga a un segundo
-  // render en cascada.
+  // El formulario sigue a la fila que se edita. Ajustar el estado durante el render es lo que
+  // documenta React para esto: en un efecto obliga a un segundo render en cascada.
   const [syncedRow, setSyncedRow] = useState(row)
   if (syncedRow !== row) {
     setSyncedRow(row)
-    setForm(row ? rowToForm(row) : emptyForm())
+    setForm(rowToForm(row))
   }
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -64,9 +69,7 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
         dailyValue: parseFloat(form.dailyValue),
         hourlyValue: parseFloat(form.hourlyValue),
       }
-      return row
-        ? tableRowsApi.updateRow(ruleSystemCode, tableCode, row.id, { ...body, active: form.active })
-        : tableRowsApi.createRow(ruleSystemCode, tableCode, body)
+      return tableRowsApi.updateRow(ruleSystemCode, tableCode, row.id, { ...body, active: form.active })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['table-rows', ruleSystemCode, tableCode] })
@@ -82,7 +85,7 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
       <div className="fixed inset-0 z-50 bg-surface-overlay" onClick={onClose} />
       <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-surface-panel border border-border-default rounded-lg shadow-(--shadow-panel) p-4">
         <p className="text-sm font-medium text-text-primary mb-1">
-          {row ? 'Editar fila' : 'Nueva fila'} · <span className="font-mono text-text-accent">{tableCode}</span>
+          Editar fila · <span className="font-mono text-text-accent">{tableCode}</span>
         </p>
         <p className="text-[9px] text-text-tertiary mb-4">
           Los valores se usan en el motor de cálculo para resolver conceptos de tipo DIRECT_AMOUNT.
@@ -119,14 +122,12 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
           ))}
         </div>
 
-        {row && (
-          <label className="flex items-center gap-2 mb-3">
-            <input type="checkbox" checked={form.active}
-              onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
-              className="accent-accent-primary" />
-            <span className="text-[10px] text-text-secondary">Activo</span>
-          </label>
-        )}
+        <label className="flex items-center gap-2 mb-3">
+          <input type="checkbox" checked={form.active}
+            onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+            className="accent-accent-primary" />
+          <span className="text-[10px] text-text-secondary">Activo</span>
+        </label>
 
         {mutation.isError && (
           <p className="text-error-text text-[9px] mb-2">Error al guardar la fila</p>

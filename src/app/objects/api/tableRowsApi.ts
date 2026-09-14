@@ -43,6 +43,9 @@ export const tableRowsApi = {
   listRows: (ruleSystemCode: string, tableCode: string) =>
     apiFetch<TableRowDto[]>(`/payroll-engine/${ruleSystemCode}/tables/${tableCode}/rows`),
 
+  // Sin llamantes desde el `b4rrhh/designer#10`: la unica pantalla que daba filas de alta era la
+  // de una ranura, y ahi el motor no las leeria nunca. El endpoint existe y es correcto; lo que
+  // falta es una pantalla de tablas de verdad que lo use (`b4rrhh/backend#95`).
   createRow: (ruleSystemCode: string, tableCode: string, body: CreateTableRowBody) =>
     apiFetch<TableRowDto>(
       `/payroll-engine/${ruleSystemCode}/tables/${tableCode}/rows`,
