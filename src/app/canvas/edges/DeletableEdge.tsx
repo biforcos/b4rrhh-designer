@@ -1,18 +1,7 @@
 import { useState } from 'react'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, useReactFlow, type EdgeProps } from '@xyflow/react'
 import type { ConceptFlowEdge } from '../types'
-
-// Cuatro trazos y ningun tono (designer#2). El color de la arista no dice que
-// puerto alimenta —eso ya lo rotula el nodo de destino—, dice si esta en el
-// camino del nodo seleccionado. El signo de un feed es un hecho distinto y se
-// marca con trazo discontinuo, no con color.
-const STROKE = {
-  normal: { stroke: 'var(--ink-line)',        strokeWidth: 1.5 },
-  path:   { stroke: 'var(--ink-line-active)', strokeWidth: 2 },
-  dimmed: { stroke: 'var(--ink-line)',        strokeWidth: 1 },
-}
-const DASH_NEGATIVE_FEED = '4 3'
-const DASH_DIMMED = '1 3'
+import { edgeStroke } from './edgeStroke'
 
 export function DeletableEdge({
   id,
@@ -31,19 +20,7 @@ export function DeletableEdge({
     targetX, targetY, targetPosition,
   })
 
-  const focus = data?.focus
-  const base = focus === 'path' ? STROKE.path : focus === 'dimmed' ? STROKE.dimmed : STROKE.normal
-  const stroke = selected
-    ? 'var(--text-inverse)'
-    : hovered && focus !== 'path'
-    ? 'var(--ink-line-strong)'
-    : base.stroke
-  const strokeWidth = selected || hovered ? 2 : base.strokeWidth
-  const strokeDasharray = focus === 'dimmed'
-    ? DASH_DIMMED
-    : data?.invertSign
-    ? DASH_NEGATIVE_FEED
-    : undefined
+  const { stroke, strokeWidth, strokeDasharray } = edgeStroke(data, { selected, hovered })
 
   return (
     <>

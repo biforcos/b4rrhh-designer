@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ReactFlow, MiniMap, Controls, Panel, addEdge, useNodesState, useEdgesState, type Connection } from '@xyflow/react'
+import { addEdge, useNodesState, useEdgesState, type Connection } from '@xyflow/react'
 import type { ReactFlowInstance } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
-import { ConceptNode } from './nodes/ConceptNode'
-import { DeletableEdge } from './edges/DeletableEdge'
 import { useConceptGraph } from './useConceptsQuery'
-import type { ConceptFlowNode, ConceptFlowEdge, EdgeFocus, FunctionalNature } from './types'
+import type { ConceptFlowNode, ConceptFlowEdge, FunctionalNature } from './types'
 import { CreateConceptDrawer } from './CreateConceptDrawer'
 import { useSaveGraph, GraphSaveError } from './useSaveGraph'
-import { CanvasLegend, NatureSwatch } from './CanvasLegend'
-import { CanvasGrid } from './CanvasGrid'
+import { NatureSwatch } from './CanvasLegend'
+import { ConceptGraphCanvas } from './ConceptGraphCanvas'
 import { savePositions, loadPositionsOrLayout } from './graphPositions'
 import { ConceptDetailPanel } from './ConceptDetailPanel'
 import { NATURE_LABELS } from './conceptLabels'
@@ -18,11 +15,8 @@ import { useRuleSystemStore } from '../../ruleSystemStore'
 import { conceptsApi } from './api/conceptsApi'
 import { validateGraph } from './validateGraph'
 import type { GraphValidationResult } from './validateGraph'
-import { useGraphFocus } from './useGraphFocus'
+import { useGraphFocusDisplay } from './useGraphFocusDisplay'
 import { SearchPalette } from './SearchPalette'
-
-const nodeTypes = { concept: ConceptNode }
-const edgeTypes = { deletable: DeletableEdge }
 
 const ALL_NATURES = Object.keys(NATURE_LABELS) as FunctionalNature[]
 
@@ -50,8 +44,6 @@ export function CanvasPage() {
   const filterRef = useRef<HTMLDivElement>(null)
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance<ConceptFlowNode, ConceptFlowEdge> | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
-  const { focusedNodeIds, neighborNodeIds, ancestorNodeIds, focusedEdgeIds, ancestorEdgeIds } =
-    useGraphFocus(selectedNode?.id ?? null, edges)
   const [summaryEditTarget, setSummaryEditTarget] = useState<string | null>(null)
   const [summaryDraft, setSummaryDraft] = useState('')
   const [pendingSave, setPendingSave] = useState<{ nodes: typeof nodes; edges: typeof edges; validation: GraphValidationResult } | null>(null)
@@ -147,31 +139,25 @@ export function CanvasPage() {
     })
   }
 
-  const displayNodes = useMemo(() => {
-    const withState = nodes.map(n => ({
-      ...n,
-      data: {
-        ...n.data,
-        onEditSummary: handleEditSummary,
-        dimmed: selectedNode != null && !focusedNodeIds.has(n.id),
-        neighborHighlight: selectedNode != null && neighborNodeIds.has(n.id),
-        ancestorHighlight: selectedNode != null && ancestorNodeIds.has(n.id) && !neighborNodeIds.has(n.id),
-      },
-    }))
-    return filterNatures.size === 0
-      ? withState
-      : withState.map(n => ({ ...n, hidden: !filterNatures.has(n.data.functionalNature) }))
-  }, [nodes, filterNatures, handleEditSummary, selectedNode, focusedNodeIds, neighborNodeIds, ancestorNodeIds])
+  // El lapiz del summary solo existe donde se puede escribir: en modo recibo no se pasa, y por eso
+  // alli no esta (`designer#8`).
+  const editableNodes = useMemo(
+    () => nodes.map(n => ({ ...n, data: { ...n.data, onEditSummary: handleEditSummary } })),
+    [nodes, handleEditSummary],
+  )
 
-  // Con un nodo seleccionado, cada arista esta en su camino o fuera de el; el
-  // trazo lo decide DeletableEdge a partir de ese hecho, no de un color.
-  const displayEdges = useMemo(() => {
-    if (!selectedNode) return edges
-    return edges.map(e => {
-      const focus: EdgeFocus = focusedEdgeIds.has(e.id) || ancestorEdgeIds.has(e.id) ? 'path' : 'dimmed'
-      return { ...e, data: { ...e.data, focus } }
-    })
-  }, [edges, selectedNode, focusedEdgeIds, ancestorEdgeIds])
+  const { displayNodes: focusedNodes, displayEdges } = useGraphFocusDisplay(
+    editableNodes,
+    edges,
+    selectedNode?.id ?? null,
+  )
+
+  const displayNodes = useMemo(
+    () => filterNatures.size === 0
+      ? focusedNodes
+      : focusedNodes.map(n => ({ ...n, hidden: !filterNatures.has(n.data.functionalNature) })),
+    [focusedNodes, filterNatures],
+  )
 
   if (isLoading) return <div className="flex items-center justify-center h-full text-text-tertiary">Cargando grafo...</div>
 
@@ -275,29 +261,18 @@ export function CanvasPage() {
           </div>
         </div>
 
-        <ReactFlow<ConceptFlowNode, ConceptFlowEdge>
+        <ConceptGraphCanvas
           nodes={displayNodes}
           edges={displayEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={(_, node) => { if (node.type === 'concept') setSelectedNode(node as ConceptFlowNode) }}
+          onNodeClick={setSelectedNode}
           onNodeDragStop={onNodeDragStop}
           onPaneClick={() => setSelectedNode(null)}
           onInit={setRfInstance}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-        >
-          <CanvasGrid />
-          {/* Con el panel de detalle abierto se mira un nodo, no se navega:
-              el minimapa sobra, y ademas el panel se le comia el borde. */}
-          {!selectedNode && <MiniMap />}
-          <Controls />
-          <Panel position="bottom-right">
-            <CanvasLegend />
-          </Panel>
-        </ReactFlow>
+          showMiniMap={!selectedNode}
+        />
 
         <CreateConceptDrawer
           open={drawerOpen}
