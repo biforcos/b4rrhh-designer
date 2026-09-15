@@ -1918,6 +1918,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll-engine/{ruleSystemCode}/binding-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a binding role - a table slot, which is not a table
+         * @description Creates a payroll object of type TABLE whose code the engine uses as a binding role: it resolves it through payroll_object_binding to the table that actually holds the values. It is a slot, and a slot is not a table (ADR-063). This used to be POST /payroll-engine/{ruleSystemCode}/tables, sharing a path with the GET that lists tables, and the two looked like the obvious pair without being one: what this creates cannot appear in that GET until something else, elsewhere, binds a table with rows to it. Sharing the path was what manufactured that illusion, and the contract is read by two clients that do not read it twice (backend#98). What it creates is a row of the object catalogue, which is why it now lives next to it and not under tables. A freshly created binding role does nothing until a concept feeds from it and an agreement-level binding ties it to a real table.
+         */
+        post: operations["createPayrollBindingRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll-engine/{ruleSystemCode}/tables": {
         parameters: {
             query?: never;
@@ -1931,8 +1951,7 @@ export interface paths {
          */
         get: operations["listPayrollTables"];
         put?: never;
-        /** Create a new salary table */
-        post: operations["createPayrollTable"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4006,13 +4025,16 @@ export interface components {
             message?: string;
             details?: Record<string, never>;
         };
-        CreatePayrollTableRequest: {
-            /** @example SB_99002405012025 */
-            objectCode: string;
+        CreateBindingRoleRequest: {
+            /**
+             * @description The role name the engine resolves through payroll_object_binding. It is not the code of a table of amounts - the example of the old field said otherwise and that was the whole confusion (backend#98).
+             * @example P03_DAILY_AMOUNT_TABLE
+             */
+            bindingRoleCode: string;
         };
-        PayrollTableResponse: {
+        BindingRoleResponse: {
             ruleSystemCode?: string;
-            objectCode?: string;
+            bindingRoleCode?: string;
         };
         /** @description One real table. rowCount and activeRowCount are served together because a table whose rows were all deactivated still has rows and no longer feeds anything, and those are not the same state as an empty table. */
         PayrollTableSummaryResponse: {
@@ -9744,6 +9766,39 @@ export interface operations {
             };
         };
     };
+    createPayrollBindingRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBindingRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Binding role created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BindingRoleResponse"];
+                };
+            };
+            /** @description That binding role already exists in this rule system */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listPayrollTables: {
         parameters: {
             query?: never;
@@ -9763,39 +9818,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PayrollTableSummaryResponse"][];
                 };
-            };
-        };
-    };
-    createPayrollTable: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                ruleSystemCode: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreatePayrollTableRequest"];
-            };
-        };
-        responses: {
-            /** @description Table created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollTableResponse"];
-                };
-            };
-            /** @description Table already exists */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

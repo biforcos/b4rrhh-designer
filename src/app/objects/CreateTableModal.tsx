@@ -10,15 +10,16 @@ interface Props {
 /**
  * Crea un `payroll_object` de tipo TABLE, que es una *ranura*, no una tabla de
  * importes: el motor usa su codigo como rol de vinculacion. Se llama por su
- * nombre desde el `b4rrhh/designer#10`. El endpoint sigue siendo
- * `POST /payroll-engine/{ruleSystemCode}/tables` y el contrato no se toca.
+ * nombre desde el `b4rrhh/designer#10`, y desde el `b4rrhh/backend#98` el
+ * contrato tambien: `POST /payroll-engine/{ruleSystemCode}/binding-roles`.
+ * Esta pantalla llego antes que el nombre del endpoint, no al reves.
  */
 export function CreateTableModal({ ruleSystemCode, onClose }: Props) {
   const qc = useQueryClient()
   const [objectCode, setObjectCode] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => tableRowsApi.createTable(ruleSystemCode, objectCode.trim()),
+    mutationFn: () => tableRowsApi.createBindingRole(ruleSystemCode, objectCode.trim()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['objects', ruleSystemCode, 'TABLE'] })
       onClose()

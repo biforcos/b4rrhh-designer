@@ -34,10 +34,14 @@ export interface UpdateTableRowBody {
 }
 
 export const tableRowsApi = {
-  createTable: (ruleSystemCode: string, objectCode: string) =>
-    apiFetch<{ ruleSystemCode: string; objectCode: string }>(
-      `/payroll-engine/${ruleSystemCode}/tables`,
-      { method: 'POST', body: JSON.stringify({ objectCode }) }
+  // Crea una RANURA -un rol de vinculacion-, no una tabla. Se llamaba createTable y colgaba de
+  // /tables, que es la lista de tablas de verdad: parecian el par obvio sin serlo, porque lo que
+  // esto crea no sale en aquella lista hasta que una vinculacion por convenio le ata una tabla con
+  // filas. El contrato lo dice ya con ese nombre desde el `b4rrhh/backend#98`.
+  createBindingRole: (ruleSystemCode: string, bindingRoleCode: string) =>
+    apiFetch<{ ruleSystemCode: string; bindingRoleCode: string }>(
+      `/payroll-engine/${ruleSystemCode}/binding-roles`,
+      { method: 'POST', body: JSON.stringify({ bindingRoleCode }) }
     ),
 
   listRows: (ruleSystemCode: string, tableCode: string) =>
