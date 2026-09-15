@@ -1925,7 +1925,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List the real tables of a rule system, with their row count and who binds them
+         * @description Lists tables, not binding roles. A binding role such as BASE_SALARY_TABLE is a slot: the engine takes it as a role name and resolves it through payroll_object_binding to the table that actually holds the values. Asking the object catalogue instead (GET /payroll-engine/{ruleSystemCode}/objects?type=TABLE) answers a different question and answers it badly for this one: of the three roles bound in ESP today only one, P02_DAILY_AMOUNT_TABLE, exists as a payroll object, so that list shows one of three, and the one it shows is a slot and not a table. The list is therefore derived from two places and from neither alone: every distinct table code that has rows, and every table code that a binding points at. A table with rows that nobody binds is listed with an empty bindings array - it exists and nothing reads it. A table that a binding points at and that has no rows is listed with rowCount 0 - it is read and it is empty. Those two cases are different and this is where they become distinguishable, which is the whole reason rowCount is served next to the bindings. A binding role with no table bound to it does not appear here, because there is no table to list. It remains a node of the graph, which is where it belongs: the canvas.
+         */
+        get: operations["listPayrollTables"];
         put?: never;
         /** Create a new salary table */
         post: operations["createPayrollTable"];
@@ -4009,6 +4013,24 @@ export interface components {
         PayrollTableResponse: {
             ruleSystemCode?: string;
             objectCode?: string;
+        };
+        /** @description One real table. rowCount and activeRowCount are served together because a table whose rows were all deactivated still has rows and no longer feeds anything, and those are not the same state as an empty table. */
+        PayrollTableSummaryResponse: {
+            ruleSystemCode: string;
+            tableCode: string;
+            /** Format: int64 */
+            rowCount: number;
+            /** Format: int64 */
+            activeRowCount: number;
+            /** @description Who reads this table and under which role. Empty means nothing binds it: the table exists and no owner reaches it. */
+            bindings: components["schemas"]["PayrollTableBindingResponse"][];
+        };
+        /** @description An entry of payroll_object_binding pointing at this table. Inactive bindings are listed too, with active false: a binding that was switched off is the explanation for a table that stopped being read, and hiding it turns that into a mystery. */
+        PayrollTableBindingResponse: {
+            ownerTypeCode: string;
+            ownerCode: string;
+            bindingRoleCode: string;
+            active: boolean;
         };
         CreateTableRowRequest: {
             /** @example 99002405-G1 */
@@ -9718,6 +9740,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AbsenceErrorResponse"];
+                };
+            };
+        };
+    };
+    listPayrollTables: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tables listed, ordered by table code */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollTableSummaryResponse"][];
                 };
             };
         };
