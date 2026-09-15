@@ -3903,7 +3903,16 @@ export interface components {
             calculatedAt: string;
         };
         PayrollErrorResponse: {
+            /**
+             * @description Run message code for the failure, when it has one. Present on 422; absent on the errors that predate it (404, 409), whose body is unchanged.
+             * @example UNIT_CALCULATION_ERROR
+             */
+            code?: string;
             message: string;
+            /** @description What the bulk launch stores in the run message details for the same failure. */
+            details?: {
+                [key: string]: unknown;
+            };
         };
         CreatePayrollConceptRequest: {
             /** @example 201 */
@@ -8727,6 +8736,15 @@ export interface operations {
             };
             /** @description Payroll is not in NOT_VALID status */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description The engine could not calculate the unit. The request and the payroll state are both fine; what cannot be processed is the rule system behind them — a deactivated object binding, a table row with no validity for the date, a missing operand. code carries the same run message code the bulk launch writes for the unit (UNIT_CALCULATION_ERROR, or UNIT_ELIGIBLE_REAL_SKIPPED_MISSING_INPUT when an eligible unit was missing an input), so both doors name the same failure the same way and the catalogue already translates it. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
