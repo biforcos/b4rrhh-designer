@@ -1938,6 +1938,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll-engine/{ruleSystemCode}/objects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the payroll objects of a rule system, by type
+         * @description The object catalogue: every name the engine knows, by type. A CONCEPT is something the engine calculates, a TABLE is a slot that a binding resolves to the rows that hold the values, and a CONSTANT is a fixed figure. It is the catalogue and not an inventory of what exists elsewhere: a TABLE here is a slot, so asking this for the real tables of a rule system answers badly - that is what GET /payroll-engine/{ruleSystemCode}/tables is for, and the difference is written there. This operation was served from the backend and absent from this contract until b4rrhh/designer#11, which is why the designer called it with the path written by hand.
+         */
+        get: operations["listPayrollObjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll-engine/{ruleSystemCode}/tables": {
         parameters: {
             query?: never;
@@ -4044,6 +4064,17 @@ export interface components {
         BindingRoleResponse: {
             ruleSystemCode?: string;
             bindingRoleCode?: string;
+        };
+        /** @description One entry of the object catalogue. displayOrder and active are served as null and true today: the catalogue has no ordering and no deactivation yet, and they are declared because the backend sends them - a field served and not declared does not exist for the generated client, which is the defect b4rrhh/backend#80 closed for the whole contract. */
+        PayrollObjectResponse: {
+            ruleSystemCode: string;
+            /** @example P02_DAILY_AMOUNT_TABLE */
+            objectCode: string;
+            /** @enum {string} */
+            objectTypeCode: "CONCEPT" | "TABLE" | "CONSTANT";
+            /** Format: int32 */
+            displayOrder?: number | null;
+            active: boolean;
         };
         /** @description One real table. rowCount and activeRowCount are served together because a table whose rows were all deactivated still has rows and no longer feeds anything, and those are not the same state as an empty table. */
         PayrollTableSummaryResponse: {
@@ -9814,6 +9845,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listPayrollObjects: {
+        parameters: {
+            query: {
+                /** @description The object type to list. Anything else answers 400. */
+                type: "CONCEPT" | "TABLE" | "CONSTANT";
+            };
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Objects of that type in the rule system */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollObjectResponse"][];
+                };
+            };
+            /** @description The type is not one of the declared object types. The body is the one every /payroll-engine operation answers for a bad argument, which today is named after concepts because a base-package advice serves the whole context - see b4rrhh/backend#78, which is unifying those names. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptErrorResponse"];
+                };
             };
         };
     };
