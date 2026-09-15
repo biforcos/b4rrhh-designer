@@ -13,6 +13,7 @@
     "api:refresh": "npm run api:pull && npm run api:generate",
     "lint": "eslint .",
     "lint:colors": "node ./tools/lint-color-classes.mjs",
+    "lint:api-paths": "node ./tools/lint-api-paths.mjs",
     "preview": "vite preview",
     "test": "vitest run"
   },

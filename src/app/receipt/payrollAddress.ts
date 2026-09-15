@@ -16,17 +16,22 @@ export interface PayrollAddress {
 
 const PAYROLL_TYPE_CODES = ['NORMAL', 'EXTRA']
 
-/** La ruta de `GET /payrolls/.../steps` del `backend#97`. */
+/**
+ * La ruta de `GET /payrolls/.../steps` del `backend#97`.
+ *
+ * Las seis partes se escriben una a una y no con un `join`, y no es estilo: una ruta armada a
+ * trozos no se puede comprobar leyendo el fuente, y `lint:api-paths` —el candado que el
+ * `designer#11` montó para que ninguna llamada se salga del contrato— sólo puede ver la forma que
+ * está escrita: un `join` la escondía, y una ruta partida en trozos concatenados también. Por eso
+ * los seis nombres se acortan aquí, que es lo que permite que quepa en un literal y se vea entera.
+ * Esconderla de la comprobación es exactamente lo que dejó a `/objects` fuera del contrato durante
+ * meses.
+ */
 export function payrollStepsPath(address: PayrollAddress): string {
-  const parts = [
-    address.ruleSystemCode,
-    address.employeeTypeCode,
-    address.employeeNumber,
-    address.payrollPeriodCode,
-    address.payrollTypeCode,
-    String(address.presenceNumber),
-  ].map(encodeURIComponent)
-  return `/payrolls/${parts.join('/')}/steps`
+  const e = encodeURIComponent
+  const { ruleSystemCode: rs, employeeTypeCode: et, employeeNumber: en } = address
+  const { payrollPeriodCode: pp, payrollTypeCode: pt, presenceNumber: pn } = address
+  return `/payrolls/${e(rs)}/${e(et)}/${e(en)}/${e(pp)}/${e(pt)}/${e(String(pn))}/steps`
 }
 
 /**
