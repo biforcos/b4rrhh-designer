@@ -1351,26 +1351,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/payrolls/calculate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Temporary stub endpoint to materialize a payroll result
-         * @description Temporary pipeline-validation stub endpoint. This endpoint is not the final payroll engine API and is only used to materialize payroll results during the pre-launch phase. Clients currently provide concepts and context snapshots explicitly so the payroll vertical can be exercised end-to-end before launch orchestration, fake calculator generation, and the real calculation engine are introduced.
-         */
-        post: operations["calculatePayroll"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/recalculate": {
         parameters: {
             query?: never;
@@ -3742,52 +3722,6 @@ export interface components {
             /** Format: date */
             endDate: string;
         };
-        /** @description Temporary stub request used to materialize a payroll result during the pre-launch phase. This schema is intentionally transitional and will be replaced when the real payroll engine input contract is defined. */
-        CalculatePayrollRequest: {
-            ruleSystemCode: string;
-            employeeTypeCode: string;
-            employeeNumber: string;
-            payrollPeriodCode: string;
-            /** @enum {string} */
-            payrollTypeCode: "NORMAL" | "EXTRA";
-            /** Format: int32 */
-            presenceNumber: number;
-            /** @description Initial implementation only accepts CALCULATED or NOT_VALID for calculation output. */
-            status: components["schemas"]["PayrollStatus"];
-            statusReasonCode?: string | null;
-            /** Format: date-time */
-            calculatedAt: string;
-            calculationEngineCode: string;
-            calculationEngineVersion: string;
-            /** @description Temporary stub-provided payroll concepts. In the final calculation flow these lines are expected to be produced by the payroll engine rather than sent as a stable public API payload. */
-            concepts: components["schemas"]["PayrollConceptRequest"][];
-            /** @description Temporary stub-provided context snapshots used to persist supporting payroll context during pipeline validation. This is not the final public engine input shape. */
-            contextSnapshots: components["schemas"]["PayrollContextSnapshotRequest"][];
-        };
-        PayrollConceptRequest: {
-            /** Format: int32 */
-            lineNumber: number;
-            conceptCode: string;
-            conceptLabel: string;
-            /** Format: double */
-            amount: number;
-            /** Format: double */
-            quantity?: number | null;
-            /** Format: double */
-            rate?: number | null;
-            conceptNatureCode: string;
-            originPeriodCode?: string | null;
-            /** Format: int32 */
-            displayOrder: number;
-        };
-        PayrollContextSnapshotRequest: {
-            snapshotTypeCode: string;
-            sourceVerticalCode: string;
-            /** @description JSON serialized business key of the source context. */
-            sourceBusinessKeyJson: string;
-            /** @description JSON serialized snapshot payload. */
-            snapshotPayloadJson: string;
-        };
         /** @enum {string} */
         PayrollStatus: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
         PayrollResponse: {
@@ -3804,7 +3738,7 @@ export interface components {
             calculatedAt: string;
             /**
              * Format: int64
-             * @description Calculation run that produced this payroll. Null means no registered execution produced it, which is the case for the temporary calculate stub and for the ad-hoc recalculation of a single payroll.
+             * @description Calculation run that produced this payroll. Null means no registered execution produced it. Nothing served today produces such a payroll: the ad-hoc recalculation opens a run of its own since b4rrhh/backend#99, and the temporary calculate stub was retired in b4rrhh/backend#90. It stays nullable for the rows written before those two, and a client must still handle null.
              */
             runId?: number | null;
             concepts: components["schemas"]["PayrollConceptResponse"][];
@@ -8670,57 +8604,6 @@ export interface operations {
                 };
             };
             /** @description Payroll cannot be finalized from its current status */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollErrorResponse"];
-                };
-            };
-        };
-    };
-    calculatePayroll: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CalculatePayrollRequest"];
-            };
-        };
-        responses: {
-            /** @description Payroll calculated and created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollErrorResponse"];
-                };
-            };
-            /** @description Employee presence not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollErrorResponse"];
-                };
-            };
-            /** @description Payroll recalculation is not allowed for the current status */
             409: {
                 headers: {
                     [name: string]: unknown;
