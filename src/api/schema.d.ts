@@ -1388,6 +1388,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payrolls/finalize-bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk close workflow for payroll results
+         * @description Synchronous bulk close workflow, the third period verb next to the bulk invalidation and the calculation launch. It does NOT close a period: there is no period entity to close. Closing is applying to many payrolls the same verb POST /payrolls/.../finalize applies to one, so it resolves a target employee population, expands to presence-based candidate units, and transitions to DEFINITIVE every payroll that is CALCULATED or EXPLICIT_VALIDATED. NOT_VALID payrolls are counted apart in totalSkippedNotEligibleByStatus and are not errors: NOT_VALID to DEFINITIVE does not exist, because there is nothing to protect in an invalid payroll. Closing is irreversible and nothing reopens it; what comes afterwards is another payroll. Closing does not forbid calculating in the period either: a later hire produces a payroll that was never closed. targetSelection semantics mirror those of the payroll launch endpoint. totalCandidates represents expanded presence-based units, not the raw number of target employees.
+         */
+        post: operations["bulkFinalizePayroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/calculation-runs/launch": {
         parameters: {
             query?: never;
@@ -2123,6 +2143,52 @@ export interface components {
             presenceNumber?: number | null;
             /** Format: date-time */
             createdAt: string;
+        };
+        /** @description Request for the bulk close workflow. targetSelection semantics mirror those of the payroll launch endpoint. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, both employee and employees must be null. There is no statusReasonCode: closing does not give a reason, it keeps the one the payroll already had. Invalidation does ask for one, because invalidating is a decision about something that was fine. */
+        BulkFinalizePayrollRequest: {
+            ruleSystemCode: string;
+            /** @description Must be in YYYYMM format. Used to resolve presence overlaps for the payroll month. */
+            payrollPeriodCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
+            targetSelection: components["schemas"]["PayrollLaunchTargetSelectionRequest"];
+        };
+        /** @description Summary of a completed bulk close workflow. The counters are the deliverable, not decoration: NOT_VALID to DEFINITIVE does not exist, so closing 873 payrolls will close the calculated and validated ones and leave the rest out, and a counter that says which and why shows the state machine instead of explaining it. That is why nothing is lumped into a generic "failed": nothing failed. The partition is totalCandidates = totalFinalized + totalSkippedAlreadyDefinitive + totalSkippedNotEligibleByStatus + totalSkippedNotFound; totalFound is a stage, not a bucket, and adding it to the rest counts twice. */
+        BulkFinalizePayrollResponse: {
+            ruleSystemCode: string;
+            payrollPeriodCode: string;
+            /** @enum {string} */
+            payrollTypeCode: "NORMAL" | "EXTRA";
+            /**
+             * Format: int32
+             * @description Total presence-based candidate units expanded from the target population.
+             */
+            totalCandidates: number;
+            /**
+             * Format: int32
+             * @description Payroll rows found in persistence for the candidate units.
+             */
+            totalFound: number;
+            /**
+             * Format: int32
+             * @description Payrolls transitioned to DEFINITIVE here, from CALCULATED or from EXPLICIT_VALIDATED.
+             */
+            totalFinalized: number;
+            /**
+             * Format: int32
+             * @description Payrolls already DEFINITIVE, skipped without error. Expected when a period is closed again.
+             */
+            totalSkippedAlreadyDefinitive: number;
+            /**
+             * Format: int32
+             * @description Payrolls whose status does not admit closing, which today is exactly NOT_VALID. This is the counter that shows the state machine, and it is deliberately separate from everything else.
+             */
+            totalSkippedNotEligibleByStatus: number;
+            /**
+             * Format: int32
+             * @description Candidate units with no payroll row: never calculated, or calculated for another payroll type.
+             */
+            totalSkippedNotFound: number;
         };
         /** @description Request for bulk payroll invalidation workflow. targetSelection semantics mirror those of the payroll launch endpoint. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, both employee and employees must be null. */
         BulkInvalidatePayrollRequest: {
@@ -8688,6 +8754,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkInvalidatePayrollResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rule system or payroll type not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    bulkFinalizePayroll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkFinalizePayrollRequest"];
+            };
+        };
+        responses: {
+            /** @description Bulk close completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkFinalizePayrollResponse"];
                 };
             };
             /** @description Invalid request parameters */
