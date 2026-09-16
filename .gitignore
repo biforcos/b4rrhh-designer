@@ -25,3 +25,7 @@ dist-ssr
 *.sln
 *.sw?
 .worktrees/
+
+# Maquetas sueltas de una herramienta de brainstorming, con sus ficheros de
+# PID dentro. Se commitearon sin querer y se las lleva quien clone.
+.superpowers/
