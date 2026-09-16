@@ -3897,7 +3897,13 @@ export interface components {
             rate?: number | null;
             /** @description Payslip print order of this concept, or null when this step never reached the payslip. Steps include bases and technical values, so the amount column must not be summed: the totals are the payroll totals and only come from the payslip lines. */
             payslipOrderCode?: string | null;
+            /**
+             * Format: int32
+             * @description Which payslip line this step ended up in, or null when it never reached the payslip. Two steps sharing a number are the ones that line merges: same concept, same rate, and the payslip adds them into a single row even when their segments are not contiguous. This is what lets a repeated step say why it is two — different rates, or the same rate reached by different paths — instead of leaving the reader to compare rates by eye. It is null exactly when payslipOrderCode is, except in payrolls calculated before this field existed, which carry null until they are recalculated.
+             */
+            payslipLineNumber?: number | null;
         };
+        /** @description One payslip line. mergedStepCount says how many engine steps it comes from: one almost always, more when the payslip merged several segments of the same concept at the same rate, which may not be contiguous. Without it the line is correct and tells a false story, and the payslip screen and the calculation screen disagree on the number of rows with nothing explaining why. To get from a line to its steps, take the steps of that payroll whose payslipLineNumber equals this lineNumber: no grouping has to be reconstructed. */
         PayrollConceptResponse: {
             lineNumber: number;
             conceptCode: string;
@@ -3908,6 +3914,11 @@ export interface components {
             conceptNatureCode: string;
             originPeriodCode?: string;
             displayOrder: number;
+            /**
+             * Format: int32
+             * @description How many engine steps this line merges. One means the line is one step, and a client must not draw any mark: a mark that shows up on every line marks nothing.
+             */
+            mergedStepCount: number;
         };
         PayrollSummaryResponse: {
             ruleSystemCode: string;
