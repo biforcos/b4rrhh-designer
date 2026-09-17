@@ -16,9 +16,10 @@ interface ReciboDeOrigenState {
  * puede irse al Canvas, a Asignaciones o a otra tabla, y el camino de vuelta sigue ahí. Es una
  * miga, no un modo: no encierra a nadie, sólo recuerda de dónde venía.
  *
- * **En `sessionStorage` y no en `localStorage`**, que es donde vive el sistema de reglas. El salto
- * abre una pestaña nueva, así que el recibo de origen es de esa pestaña: guardarlo en
- * `localStorage` pondría la miga en todas las demás, y seguiría ahí mañana.
+ * **En `sessionStorage` y no en `localStorage`**, que es donde vive el sistema de reglas. El
+ * recibo de origen es de esta visita y de esta pestaña: en `localStorage` la miga aparecería
+ * también en las demás pestañas del designer, donde nadie ha saltado desde ningún recibo, y
+ * seguiría ahí mañana.
  */
 export const useReciboDeOrigen = create<ReciboDeOrigenState>()(
   persist(
