@@ -20,17 +20,41 @@ interface FormState {
   active: boolean
 }
 
+/**
+ * Un importe que la fila no lleva sale vacio, no con la palabra «null».
+ *
+ * `String(null)` daba `'null'`, que el campo pintaba en blanco y la validacion leia como un numero
+ * roto: el boton de guardar quedaba inhabilitado. No se veia porque las unicas filas que esta
+ * pantalla habia abierto eran las huerfanas de una ranura; las tablas de verdad llegaron con el
+ * `designer#13`, y una fila de precio dia lleva el diario y **nada mas** (`designer#13`).
+ */
+function importeAFormulario(valor: number | null | undefined): string {
+  return valor === null || valor === undefined ? '' : String(valor)
+}
+
 function rowToForm(row: TableRowDto): FormState {
   return {
     searchCode: row.searchCode,
     startDate: row.startDate,
     endDate: row.endDate ?? '',
-    monthlyValue: String(row.monthlyValue),
-    annualValue: String(row.annualValue),
-    dailyValue: String(row.dailyValue),
-    hourlyValue: String(row.hourlyValue),
+    monthlyValue: importeAFormulario(row.monthlyValue),
+    annualValue: importeAFormulario(row.annualValue),
+    dailyValue: importeAFormulario(row.dailyValue),
+    hourlyValue: importeAFormulario(row.hourlyValue),
     active: row.active,
   }
+}
+
+/**
+ * Lo que se manda por un campo vacio: nulo.
+ *
+ * La actualizacion es parcial y el backend lee el nulo como «esto no lo toques»
+ * (`UpdateTableRowService`), asi que vaciar un campo **deja el valor como estaba** en vez de
+ * borrarlo. Es la semantica del endpoint, no una decision de esta pantalla, y se escribe aqui
+ * porque desde el formulario las dos cosas se parecen.
+ */
+function importeDelFormulario(valor: string): number | null {
+  return valor === '' || Number.isNaN(parseFloat(valor)) ? null : parseFloat(valor)
 }
 
 /**
@@ -64,10 +88,10 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
         searchCode: form.searchCode,
         startDate: form.startDate,
         endDate: form.endDate || null,
-        monthlyValue: parseFloat(form.monthlyValue),
-        annualValue: parseFloat(form.annualValue),
-        dailyValue: parseFloat(form.dailyValue),
-        hourlyValue: parseFloat(form.hourlyValue),
+        monthlyValue: importeDelFormulario(form.monthlyValue),
+        annualValue: importeDelFormulario(form.annualValue),
+        dailyValue: importeDelFormulario(form.dailyValue),
+        hourlyValue: importeDelFormulario(form.hourlyValue),
       }
       return tableRowsApi.updateRow(ruleSystemCode, tableCode, row.id, { ...body, active: form.active })
     },
@@ -77,8 +101,15 @@ export function TableRowModal({ ruleSystemCode, tableCode, row, onClose }: Props
     },
   })
 
-  const isValidNum = (s: string) => s !== '' && !Number.isNaN(parseFloat(s))
-  const isValid = form.searchCode.trim() && form.startDate && isValidNum(form.monthlyValue) && isValidNum(form.annualValue) && isValidNum(form.dailyValue) && isValidNum(form.hourlyValue)
+  const esNumero = (s: string) => s !== '' && !Number.isNaN(parseFloat(s))
+  const importes = [form.monthlyValue, form.annualValue, form.dailyValue, form.hourlyValue]
+  // Al menos uno, y no los cuatro: una fila de precio dia lleva el diario y nada mas, y exigir los
+  // cuatro hacia imposible guardarla. Ninguno seria una fila sin importes, que si es un error.
+  const isValid =
+    form.searchCode.trim() !== '' &&
+    form.startDate !== '' &&
+    importes.some(esNumero) &&
+    importes.every(valor => valor === '' || esNumero(valor))
 
   return (
     <>

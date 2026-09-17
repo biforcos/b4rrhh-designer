@@ -22,7 +22,8 @@ interface Props {
  * la fila se guardaba con `table_code` = el codigo de la ranura, la pantalla la
  * pintaba y el motor no la leia jamas. El boton no esta.
  *
- * Listar las tablas de verdad necesita un endpoint que no existe: `b4rrhh/backend#95`.
+ * Las tablas de verdad ya se listan, en la pestana «Tablas» de al lado: el endpoint que faltaba
+ * llego con el `b4rrhh/backend#95` y la pantalla con el `b4rrhh/designer#13`.
  */
 export function TableRowPanel({ ruleSystemCode, tableCode }: Props) {
   const qc = useQueryClient()
@@ -38,8 +39,9 @@ export function TableRowPanel({ ruleSystemCode, tableCode }: Props) {
     },
   })
 
-  function formatNum(n: number) {
-    return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2 }).format(n)
+  // Los cuatro importes son nulables: una fila lleva los que su tabla usa y no los demas.
+  function formatNum(n: number | null) {
+    return n === null ? '—' : new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2 }).format(n)
   }
 
   return (
@@ -69,9 +71,8 @@ export function TableRowPanel({ ruleSystemCode, tableCode }: Props) {
             de la ranura se vería aquí y <strong>el motor no la leería jamás</strong>.
           </p>
           <p className="text-[10px] text-text-tertiary leading-relaxed mt-2">
-            Ver y tocar las tablas de verdad necesita un endpoint que todavía no existe
-            (<span className="font-mono">b4rrhh/backend#95</span>). La ranura, como nodo, sigue en
-            el Canvas, que es su sitio.
+            Las tablas de verdad están en la pestaña <strong>Tablas</strong>, aquí al lado. La
+            ranura, como nodo, sigue en el Canvas, que es su sitio.
           </p>
         </div>
 
@@ -105,9 +106,9 @@ export function TableRowPanel({ ruleSystemCode, tableCode }: Props) {
                     <td className="px-4 py-2 font-mono text-text-primary">{row.searchCode}</td>
                     <td className="px-2 py-2 text-text-secondary">{row.startDate}</td>
                     <td className="px-2 py-2 text-text-tertiary italic">{row.endDate ?? '—'}</td>
-                    <td className="px-2 py-2 text-right font-mono text-text-primary">{formatNum(row.monthlyValue)} €</td>
-                    <td className="px-2 py-2 text-right font-mono text-text-secondary">{formatNum(row.annualValue)} €</td>
-                    <td className="px-2 py-2 text-right font-mono text-text-secondary">{formatNum(row.dailyValue)} €</td>
+                    <td className="px-2 py-2 text-right font-mono text-text-primary">{formatNum(row.monthlyValue)}</td>
+                    <td className="px-2 py-2 text-right font-mono text-text-secondary">{formatNum(row.annualValue)}</td>
+                    <td className="px-2 py-2 text-right font-mono text-text-secondary">{formatNum(row.dailyValue)}</td>
                     <td className="px-2 py-2 text-right whitespace-nowrap">
                       <button
                         type="button"

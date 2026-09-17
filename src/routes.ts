@@ -20,6 +20,34 @@ export const DESIGNER_BASENAME = '/designer'
 export const BACKOFFICE_HOME = '/'
 
 /**
+ * La direccion de un recibo en el backoffice, que es adonde lleva la miga de vuelta
+ * (`designer#13`).
+ *
+ * Es una ruta del backoffice y no del designer: se navega con `window.location`, como el resto de
+ * las salidas de este fichero. Las seis partes son la clave de negocio del recibo y el numero de
+ * presencia va entero porque no se puede suponer (`frontend#64`).
+ */
+export function backofficePayrollPath(address: {
+  ruleSystemCode: string
+  employeeTypeCode: string
+  employeeNumber: string
+  payrollPeriodCode: string
+  payrollTypeCode: string
+  presenceNumber: number
+}): string {
+  const e = encodeURIComponent
+  const partes = [
+    address.ruleSystemCode,
+    address.employeeTypeCode,
+    address.employeeNumber,
+    address.payrollPeriodCode,
+    address.payrollTypeCode,
+    String(address.presenceNumber),
+  ].map(e)
+  return `/nomina/recibos/${partes.join('/')}`
+}
+
+/**
  * Login del backoffice, al que se manda a quien llega sin sesion. El del
  * designer (`/designer/login`) sigue existiendo como puerta de emergencia
  * para el arranque en frio, pero no es adonde se redirige.

@@ -1,14 +1,22 @@
 import { apiFetch } from '../../../api/client'
 
+/**
+ * Una fila de tabla.
+ *
+ * Los cuatro importes son **nulables**, y no por descuido del contrato: una fila de precio dia
+ * lleva el diario y nada mas, y una de salario base el mensual y el anual. Aqui estaban declarados
+ * como `number` a secas y esa mentira solo se notaba al abrirlas, porque las unicas filas que esta
+ * pantalla habia visto eran las huerfanas de una ranura, fabricadas con los cuatro (`designer#13`).
+ */
 export interface TableRowDto {
   id: number
   searchCode: string
   startDate: string
   endDate: string | null
-  monthlyValue: number
-  annualValue: number
-  dailyValue: number
-  hourlyValue: number
+  monthlyValue: number | null
+  annualValue: number | null
+  dailyValue: number | null
+  hourlyValue: number | null
   active: boolean
 }
 
@@ -22,14 +30,15 @@ export interface CreateTableRowBody {
   hourlyValue: number
 }
 
+/** Actualizacion parcial: lo que va nulo se queda como estaba, no se borra. */
 export interface UpdateTableRowBody {
   searchCode?: string
   startDate?: string
   endDate?: string | null
-  monthlyValue?: number
-  annualValue?: number
-  dailyValue?: number
-  hourlyValue?: number
+  monthlyValue?: number | null
+  annualValue?: number | null
+  dailyValue?: number | null
+  hourlyValue?: number | null
   active?: boolean
 }
 
