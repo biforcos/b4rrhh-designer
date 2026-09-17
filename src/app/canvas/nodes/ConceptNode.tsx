@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { type ConceptFlowNode, INPUT_PORTS } from '../types'
 import { NATURE_LABELS, NATURE_COLORS, CALCULATION_TYPE_LABELS } from '../conceptLabels'
 import type { ReceiptNodeValue } from '../../receipt/receiptValues'
-import { formatAmount, formatSegment } from '../../receipt/receiptFormat'
+import { formatSegment, formatValue } from '../../receipt/receiptFormat'
 
 // Sobre tinta la seleccion se marca en blanco, no en azul: el acento del
 // sistema es justo el color del fondo. El grado dice la distancia al nodo
@@ -142,11 +142,11 @@ function ReceiptValue({ value }: { value: ReceiptNodeValue }) {
         className="mt-1.5 border-t border-border-default pt-1"
       >
         <div className="text-right font-mono text-[11px] font-semibold tabular-nums">
-          {formatAmount(amount)}
+          {formatValue(amount)}
         </div>
         {quantity != null && rate != null && (
           <div className="text-right font-mono text-[8px] text-text-tertiary tabular-nums">
-            {formatAmount(quantity)} × {formatAmount(rate)}
+            {formatValue(quantity)} × {formatValue(rate)}
           </div>
         )}
       </div>
@@ -167,7 +167,7 @@ function ReceiptValue({ value }: { value: ReceiptNodeValue }) {
             {formatSegment(step.segmentStartDate, step.segmentEndDate, index + 1)}
           </span>
           <span className="font-mono text-[10px] font-semibold tabular-nums">
-            {formatAmount(step.amount)}
+            {formatValue(step.amount)}
           </span>
         </div>
       ))}

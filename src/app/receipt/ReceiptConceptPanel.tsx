@@ -1,6 +1,6 @@
 import { NATURE_LABELS, SCOPE_LABELS } from '../canvas/conceptLabels'
 import type { ConceptFlowNode } from '../canvas/types'
-import { formatAmount, formatSegment } from './receiptFormat'
+import { formatSegment, formatValue } from './receiptFormat'
 import type { ReceiptNodeValue } from './receiptValues'
 
 interface Props {
@@ -76,11 +76,11 @@ function ReceiptDetail({ value }: { value: ReceiptNodeValue }) {
     const { amount, quantity, rate, executionOrder, payslipOrderCode } = value.step
     return (
       <div className="space-y-2">
-        <div className="font-mono text-base font-semibold tabular-nums">{formatAmount(amount)}</div>
+        <div className="font-mono text-base font-semibold tabular-nums">{formatValue(amount)}</div>
         {quantity != null && rate != null && (
           <Field
             label="Cantidad × tarifa"
-            value={`${formatAmount(quantity)} × ${formatAmount(rate)}`}
+            value={`${formatValue(quantity)} × ${formatValue(rate)}`}
             mono
           />
         )}
@@ -112,12 +112,12 @@ function ReceiptDetail({ value }: { value: ReceiptNodeValue }) {
                 {formatSegment(step.segmentStartDate, step.segmentEndDate, index + 1)}
               </td>
               <td className="text-right font-mono">
-                {step.quantity != null ? formatAmount(step.quantity) : '—'}
+                {step.quantity != null ? formatValue(step.quantity) : '—'}
               </td>
               <td className="text-right font-mono">
-                {step.rate != null ? formatAmount(step.rate) : '—'}
+                {step.rate != null ? formatValue(step.rate) : '—'}
               </td>
-              <td className="text-right font-mono font-semibold">{formatAmount(step.amount)}</td>
+              <td className="text-right font-mono font-semibold">{formatValue(step.amount)}</td>
             </tr>
           ))}
         </tbody>
