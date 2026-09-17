@@ -3803,6 +3803,14 @@ export interface components {
             /** Format: date-time */
             calculatedAt: string;
             /**
+             * @description True when the rules of this rule system were touched after this payroll was calculated. The payroll itself does not change: it is what the engine calculated and stays that way. This says it may no longer reflect the rules in force, so a screen can offer to recalculate instead of looking as if nothing had happened.
+             *
+             *     It OVER-WARNS on purpose. The comparison is against the last change to the whole rule system, so a change to a concept this employee does not use raises it too. That is the safe direction — it never says fresh when it is stale — and it is why this must be worded as "may no longer reflect the current rules" and never as a statement of fact. Narrowing it would need to know which concepts reach which payroll, which is a different problem.
+             *
+             *     It clears itself: recalculating moves calculatedAt past the change.
+             */
+            rulesChangedSinceCalculation: boolean;
+            /**
              * Format: int64
              * @description Calculation run that produced this payroll. Null means no registered execution produced it. Nothing served today produces such a payroll: the ad-hoc recalculation opens a run of its own since b4rrhh/backend#99, and the temporary calculate stub was retired in b4rrhh/backend#90. It stays nullable for the rows written before those two, and a client must still handle null.
              */
@@ -3902,6 +3910,13 @@ export interface components {
              * @description Which payslip line this step ended up in, or null when it never reached the payslip. Two steps sharing a number are the ones that line merges: same concept, same rate, and the payslip adds them into a single row even when their segments are not contiguous. This is what lets a repeated step say why it is two — different rates, or the same rate reached by different paths — instead of leaving the reader to compare rates by eye. It is null exactly when payslipOrderCode is, except in payrolls calculated before this field existed, which carry null until they are recalculated.
              */
             payslipLineNumber?: number | null;
+            /** @description Payroll table this step read its value from, or null when the value did not come from a table. Most steps carry null and that is what it means: an AGGREGATE reads no table. */
+            sourceTableCode?: string | null;
+            /**
+             * Format: int64
+             * @description Row of that table the engine actually read. It is recorded when the value is produced, not resolved when it is read: resolving it again would answer where the value would be looked up today, and a change of validity or category in between would silently point at a different row. The row may have been deleted since, so a client must handle the address leading nowhere. Null exactly when sourceTableCode is, plus in payrolls calculated before this field existed, which carry null until they are recalculated.
+             */
+            sourceTableRowId?: number | null;
         };
         /** @description One payslip line. mergedStepCount says how many engine steps it comes from: one almost always, more when the payslip merged several segments of the same concept at the same rate, which may not be contiguous. Without it the line is correct and tells a false story, and the payslip screen and the calculation screen disagree on the number of rows with nothing explaining why. To get from a line to its steps, take the steps of that payroll whose payslipLineNumber equals this lineNumber: no grouping has to be reconstructed. */
         PayrollConceptResponse: {
