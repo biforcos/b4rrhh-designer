@@ -6,6 +6,7 @@ import type { ReactElement } from 'react'
 import { ReceiptCanvasPage } from './ReceiptCanvasPage'
 import { RECEIPT_ROUTE_PATH } from '../../routes'
 import { conceptsApi } from '../canvas/api/conceptsApi'
+import type { ConceptGraphDto, GraphOperandDto } from '../canvas/api/conceptsApi'
 import { payrollStepsApi } from './api/payrollStepsApi'
 import { ApiError } from '../../api/client'
 import { FOCUS_CONCEPT_MESSAGE, NODE_CLICKED_MESSAGE } from './embedBridge'
@@ -28,7 +29,7 @@ globalThis.DOMMatrixReadOnly ??= class {
 Element.prototype.scrollIntoView ??= function scrollIntoView() {}
 
 vi.mock('../canvas/api/conceptsApi', () => ({
-  conceptsApi: { listConcepts: vi.fn(), listOperands: vi.fn(), listFeeds: vi.fn() },
+  conceptsApi: { getGraph: vi.fn() },
 }))
 vi.mock('./api/payrollStepsApi', () => ({
   payrollStepsApi: { listSteps: vi.fn() },
@@ -69,6 +70,14 @@ function concepto(conceptCode: string, calculationType = 'RATE_BY_QUANTITY') {
   }
 }
 
+/** El grafo entero, que es lo que la pagina pide en una llamada desde el `designer#15`. */
+function grafo(
+  concepts: ReturnType<typeof concepto>[],
+  operands: GraphOperandDto[] = [],
+): ConceptGraphDto {
+  return { ruleSystemCode: 'ESP', concepts, operands, feeds: [] }
+}
+
 function paso(
   partial: Partial<PayrollStep> & { executionOrder: number; conceptCode: string },
 ): PayrollStep {
@@ -92,12 +101,9 @@ beforeEach(() => {
   window.localStorage.clear()
   // El canal es de modulo: sin esto, un mensaje guardado en un test se entregaria en el siguiente.
   resetFocusConceptChannelForTests()
-  vi.mocked(conceptsApi.listConcepts).mockResolvedValue([
-    concepto('101'),
-    concepto('970', 'AGGREGATE'),
-  ])
-  vi.mocked(conceptsApi.listOperands).mockResolvedValue([])
-  vi.mocked(conceptsApi.listFeeds).mockResolvedValue([])
+  vi.mocked(conceptsApi.getGraph).mockResolvedValue(
+    grafo([concepto('101'), concepto('970', 'AGGREGATE')]),
+  )
 })
 
 describe('ReceiptCanvasPage: la dirección', () => {
@@ -108,7 +114,7 @@ describe('ReceiptCanvasPage: la dirección', () => {
       'Esta dirección no es la de ningún recibo',
     )
     expect(payrollStepsApi.listSteps).not.toHaveBeenCalled()
-    expect(conceptsApi.listConcepts).not.toHaveBeenCalled()
+    expect(conceptsApi.getGraph).not.toHaveBeenCalled()
   })
 
   it('pide los pasos con las seis partes de la dirección, incluida la presencia de la URL', async () => {
@@ -141,7 +147,7 @@ describe('ReceiptCanvasPage: los estados que no se pueden confundir', () => {
   })
 
   it('un grafo que no carga dice que no se sabe qué conceptos hay', async () => {
-    vi.mocked(conceptsApi.listConcepts).mockRejectedValue(new ApiError(500, '/concepts'))
+    vi.mocked(conceptsApi.getGraph).mockRejectedValue(new ApiError(500, '/graph'))
     vi.mocked(payrollStepsApi.listSteps).mockResolvedValue([])
 
     wrap(<ReceiptCanvasPage />)
@@ -276,13 +282,11 @@ describe('ReceiptCanvasPage: de dónde sale este número', () => {
   it('seleccionar un concepto enciende su camino y atenúa lo que no está en él', async () => {
     // Es el recorrido que contesta «de dónde sale este número» sin leer una fila de texto
     // (`designer#8`, punto 4). El 101 alimenta al 970; D01 no tiene nada que ver.
-    vi.mocked(conceptsApi.listConcepts).mockResolvedValue([
-      concepto('101'),
-      concepto('970', 'AGGREGATE'),
-      concepto('D01', 'ENGINE_PROVIDED'),
-    ])
-    vi.mocked(conceptsApi.listOperands).mockImplementation(async (_rs, conceptCode) =>
-      conceptCode === '970' ? [{ operandRole: 'QUANTITY', sourceObjectCode: '101' }] : [],
+    vi.mocked(conceptsApi.getGraph).mockResolvedValue(
+      grafo(
+        [concepto('101'), concepto('970', 'AGGREGATE'), concepto('D01', 'ENGINE_PROVIDED')],
+        [{ conceptCode: '970', operandRole: 'QUANTITY', sourceObjectCode: '101' }],
+      ),
     )
     vi.mocked(payrollStepsApi.listSteps).mockResolvedValue([
       paso({ executionOrder: 1, conceptCode: 'D01', amount: 15 }),

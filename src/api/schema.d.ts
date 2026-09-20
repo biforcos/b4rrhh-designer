@@ -1302,6 +1302,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The payslip document, the first artefact that leaves the system
+         * @description The PDF of a payslip. Everything else the engine produces is looked at from inside; this is what is handed to a person, filed and printed, and that is what shapes the two regimes below.
+         *     A DEFINITIVE payroll is served from the store, exactly as it was written when the payroll was closed. It is never regenerated: asking twice returns the same bytes because it is the same object, not because it would be generated the same way. Two generations with different templates would be two documents of one payslip, and the employee has one.
+         *     The other three states are rendered on demand, are not stored, and carry a visible draft mark. Recalculating and asking again shows the new figures, which is correct because nothing has been handed over yet. NOT_VALID is served too: the backend answers what exists and the screen decides not to offer the gesture.
+         *     What it carries is the official payslip — the five sections, the labels frozen with each line, the contribution bases — and its provenance: employee, period, presence, run, calculation timestamp and the payroll business key. What it does not carry is the explanation: no mnemonics, no calculation steps, no graph. The bridge to the explanation is the printed key, not the content.
+         *     The X-Payslip-Document-Definitive response header says which of the two regimes answered, so a client can warn before the file leaves the browser and not only inside it.
+         */
+        get: operations["getPayslipDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/invalidate": {
         parameters: {
             query?: never;
@@ -1483,6 +1507,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payroll-engine/{ruleSystemCode}/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The whole concept graph of a rule system in one call
+         * @description Concepts, operands and feed relations of a rule system, together.
+         *     This exists because drawing the graph used to cost 1 + 2N calls: the concept list, then the operands and the feeds of each concept, one by one. Measured in the browser, 78 calls for the 38 concepts of ESP and 200 for a 99-concept catalogue, and 198 of those 200 answered a list of between zero and two items. It grows with the concepts of the RULE SYSTEM, not of the payslip, so the simplest payslip pays the same as the most complex one - and this is the screen that opens right after someone asked "where does this number come from".
+         *     The engine had already paid this bill on its own side: the execution metamodel is loaded once per run for exactly the same reason. This is the same N+1 on the other side of the contract.
+         *     The per-concept endpoints stay, and are not deprecated: they are what the detail panel and the two PUTs work against. This one answers a different question - the whole graph at once - and a client drawing a graph should use it.
+         */
+        get: operations["getPayrollConceptGraph"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll-engine/{ruleSystemCode}/concepts/{conceptCode}/summary": {
         parameters: {
             query?: never;
@@ -1498,6 +1545,46 @@ export interface paths {
         head?: never;
         /** Update the summary description of a payroll concept */
         patch: operations["updatePayrollConceptSummary"];
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/payslip-sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the payslip sections of the official model
+         * @description The blocks of the official payslip — earnings, deductions, net pay, contribution bases, employer contribution — and the order they print in. They are declared here, not inferred from the numeric range of a concept code: that a 1xx is an earning and a 7xx a deduction is a numbering habit, not a rule, and it breaks silently the day someone numbers an earning in the 750s. What puts a line in a block is its conceptNatureCode; each payslip line already carries the resulting payslipSectionCode frozen, and this endpoint is what gives that code a name and a position.
+         */
+        get: operations["listPayslipSections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll-engine/{ruleSystemCode}/concepts/{conceptCode}/label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Name a payroll concept
+         * @description Sets what the concept is called. It does not touch any payroll already calculated: a payslip line freezes its literal at calculation time, because the line is a document and not a view of the catalogue. What this changes is what the next calculation will say.
+         */
+        patch: operations["updatePayrollConceptLabel"];
         trace?: never;
     };
     "/payroll-engine/{ruleSystemCode}/concepts/{conceptCode}": {
@@ -3918,10 +4005,23 @@ export interface components {
              */
             sourceTableRowId?: number | null;
         };
-        /** @description One payslip line. mergedStepCount says how many engine steps it comes from: one almost always, more when the payslip merged several segments of the same concept at the same rate, which may not be contiguous. Without it the line is correct and tells a false story, and the payslip screen and the calculation screen disagree on the number of rows with nothing explaining why. To get from a line to its steps, take the steps of that payroll whose payslipLineNumber equals this lineNumber: no grouping has to be reconstructed. */
+        /**
+         * @description One payslip line. mergedStepCount says how many engine steps it comes from: one almost always, more when the payslip merged several segments of the same concept at the same rate, which may not be contiguous. Without it the line is correct and tells a false story, and the payslip screen and the calculation screen disagree on the number of rows with nothing explaining why. To get from a line to its steps, take the steps of that payroll whose payslipLineNumber equals this lineNumber: no grouping has to be reconstructed.
+         *
+         *     conceptMnemonic and conceptLabel are two different things and both are here. The mnemonic is the concept's IDENTIFIER in the engine — what rules and the graph reference — and the label is what the concept was called WHEN THIS LINE WAS CALCULATED. The label is frozen, not resolved on read: a payslip is a document, not a view of the catalogue, and renaming a concept must not change what an already delivered payslip says.
+         */
         PayrollConceptResponse: {
             lineNumber: number;
             conceptCode: string;
+            /**
+             * @description The concept's identifier in the engine, frozen with the line. This is what to key on to reach the concept, its graph node or its steps — never conceptLabel, which is a name and may differ between two payrolls of the same concept.
+             * @example SALARIO_BASE
+             */
+            conceptMnemonic: string;
+            /**
+             * @description What the concept was called when this line was calculated. It is what to show. Two payslips of the same concept may carry different labels if the catalogue was renamed in between, and that is correct: each says what it said when it was produced. A line whose concept had no name falls back to its mnemonic, so a label that looks like an identifier means the name is missing, not that the field is wrong.
+             * @example Salario base
+             */
             conceptLabel: string;
             amount?: number;
             quantity?: number;
@@ -3934,6 +4034,11 @@ export interface components {
              * @description How many engine steps this line merges. One means the line is one step, and a client must not draw any mark: a mark that shows up on every line marks nothing.
              */
             mergedStepCount: number;
+            /**
+             * @description The block of the official payslip model this line was printed in, frozen with the line. Group by this and order the groups by the displayOrder that GET /payroll-engine/{ruleSystemCode}/payslip-sections gives each section: never infer the block from the concept code's numeric range. Null when the concept's nature had no section declared — show that, do not default it into some block, because a line nobody declared a home for is exactly what needs to be noticed.
+             * @example DEVENGOS
+             */
+            payslipSectionCode?: string | null;
         };
         PayrollSummaryResponse: {
             ruleSystemCode: string;
@@ -3974,10 +4079,16 @@ export interface components {
             payslipOrderCode?: string | null;
             summary?: string | null;
         };
+        /** @description An engine concept. conceptMnemonic and label are two different things and both are here. The mnemonic is the IDENTIFIER: it is what rules reference to find the concept, and it is what the graph and the calculation trace key on. The label is what the concept is called. A client must never show one in place of the other. */
         PayrollConceptDesignerResponse: {
             ruleSystemCode: string;
             conceptCode: string;
             conceptMnemonic: string;
+            /**
+             * @description What this concept is called, in the single language the engine resolves today. Null when the concept has no name yet, which happens whenever someone adds a concept and forgets the literal. A client showing this must fall back to conceptMnemonic rather than paint a gap: a visible absence is better than an invisible one.
+             * @example Salario base
+             */
+            label?: string | null;
             calculationType: string;
             functionalNature: string;
             executionScope: string;
@@ -3986,6 +4097,25 @@ export interface components {
         };
         UpdateConceptSummaryRequest: {
             summary?: string | null;
+        };
+        /** @description One block of the official payslip model. A payslip line belongs to it through its conceptNatureCode, not through its concept code. */
+        PayslipSectionResponse: {
+            /** @example DEVENGOS */
+            sectionCode: string;
+            /** @example Devengos */
+            label: string;
+            /**
+             * Format: int32
+             * @description Where this block goes relative to the others. Order the blocks by this, and the lines inside each block by their own displayOrder.
+             */
+            displayOrder: number;
+        };
+        UpdateConceptLabelRequest: {
+            /**
+             * @description What the concept is called. Required and not blank: a blank literal is not "no name", it is a gap. Changing it does NOT move any payroll already calculated — each payslip line froze its literal when it was calculated — it changes what the next calculation will say.
+             * @example Salario base
+             */
+            label: string;
         };
         UpdateConceptOperandsRequest: {
             operands: {
@@ -4003,6 +4133,37 @@ export interface components {
                 /** Format: date */
                 effectiveTo?: string | null;
             }[];
+        };
+        /**
+         * @description The whole graph of a rule system: its concepts and every edge between them.
+         *     Edges are flat and carry the concept they point AT, which is what the per-concept endpoints cannot say because there the target is in the path. Nothing here is grouped by concept on purpose: a client draws edges, not trees, and grouping would force it to flatten what the server had just nested.
+         *     The three lists are read in one transaction, so they are consistent with each other: an operand never names a concept that is missing from concepts.
+         */
+        PayrollConceptGraphResponse: {
+            ruleSystemCode: string;
+            concepts: components["schemas"]["PayrollConceptDesignerResponse"][];
+            /** @description Every operand of every concept of the rule system, ordered by concept and role. */
+            operands: components["schemas"]["ConceptGraphOperandResponse"][];
+            /** @description Every feed relation of the rule system, ordered by target concept. Not filtered by date: the designer draws the wiring as it is declared, including what is not in force today, which is what the per-concept endpoint also returns. */
+            feeds: components["schemas"]["ConceptGraphFeedResponse"][];
+        };
+        /** @description An operand edge, with the concept it feeds into. */
+        ConceptGraphOperandResponse: {
+            /** @description The concept this operand belongs to - the target of the edge. */
+            conceptCode: string;
+            operandRole: string;
+            sourceObjectCode: string;
+        };
+        /** @description A feed edge, with the concept it feeds into. */
+        ConceptGraphFeedResponse: {
+            /** @description The concept being fed - the target of the edge. */
+            conceptCode: string;
+            sourceObjectCode: string;
+            invertSign: boolean;
+            /** Format: date */
+            effectiveFrom: string;
+            /** Format: date */
+            effectiveTo?: string | null;
         };
         ConceptOperandResponse: {
             operandRole: string;
@@ -8558,6 +8719,64 @@ export interface operations {
             };
         };
     };
+    getPayslipDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                payrollPeriodCode: string;
+                payrollTypeCode: "NORMAL" | "EXTRA";
+                presenceNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The payslip document. Archived when the payroll is DEFINITIVE, rendered on demand and marked as a draft otherwise. */
+            200: {
+                headers: {
+                    /** @description true when the body is the archived document of a closed payslip, false when it was rendered on demand and carries the draft mark. */
+                    "X-Payslip-Document-Definitive"?: boolean;
+                    /** @description attachment, with a file name that spells out a draft: recibo-EMP000001-202609.pdf against recibo-EMP000001-202609-borrador.pdf. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description Payroll not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description PAYSLIP_DOCUMENT_NOT_ARCHIVED. The payroll is closed and its document is not in the store, which can only happen for payrolls closed before closing emitted the document. It is not regenerated: that would be another document of the same payslip. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+            /** @description PAYSLIP_DOCUMENT_STORAGE_UNAVAILABLE. The document store did not answer. Unlike the other failures this one can be retried. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
+                };
+            };
+        };
+    };
     invalidatePayroll: {
         parameters: {
             query?: never;
@@ -8986,6 +9205,28 @@ export interface operations {
             };
         };
     };
+    getPayrollConceptGraph: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptGraphResponse"];
+                };
+            };
+        };
+    };
     updatePayrollConceptSummary: {
         parameters: {
             query?: never;
@@ -9010,6 +9251,69 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PayrollConceptDesignerResponse"];
                 };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listPayslipSections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The declared sections, in printing order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayslipSectionResponse"][];
+                };
+            };
+        };
+    };
+    updatePayrollConceptLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                conceptCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConceptLabelRequest"];
+            };
+        };
+        responses: {
+            /** @description Named */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptDesignerResponse"];
+                };
+            };
+            /** @description Blank or oversized label */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Not found */
             404: {

@@ -25,9 +25,8 @@ Element.prototype.scrollIntoView ??= function scrollIntoView() {}
 
 vi.mock('./api/conceptsApi', () => ({
   conceptsApi: {
+    getGraph: vi.fn(),
     listConcepts: vi.fn(),
-    listOperands: vi.fn(),
-    listFeeds: vi.fn(),
     replaceOperands: vi.fn(),
     replaceFeeds: vi.fn(),
     updateSummary: vi.fn(),
@@ -74,9 +73,17 @@ const CONCEPTOS = [
 ]
 
 const OPERANDOS_DE_700 = [
-  { operandRole: 'BASE', sourceObjectCode: 'B01' },
-  { operandRole: 'PERCENTAGE', sourceObjectCode: 'P_SS' },
+  { conceptCode: '700', operandRole: 'BASE', sourceObjectCode: 'B01' },
+  { conceptCode: '700', operandRole: 'PERCENTAGE', sourceObjectCode: 'P_SS' },
 ]
+
+/** El grafo entero, que es lo que la pantalla pide en una llamada desde el `designer#15`. */
+const GRAFO = {
+  ruleSystemCode: 'ESP',
+  concepts: CONCEPTOS,
+  operands: OPERANDOS_DE_700,
+  feeds: [],
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -85,7 +92,7 @@ beforeEach(() => {
 
 describe('CanvasPage: la carga que falla', () => {
   it('lo dice, y dice que no es lo mismo que no tener conceptos', async () => {
-    vi.mocked(conceptsApi.listConcepts).mockRejectedValue(new Error('500 Server Error'))
+    vi.mocked(conceptsApi.getGraph).mockRejectedValue(new Error('500 Server Error'))
 
     wrap(<CanvasPage />)
 
@@ -96,25 +103,21 @@ describe('CanvasPage: la carga que falla', () => {
   })
 
   it('ofrece reintentar, y reintentar vuelve a preguntar', async () => {
-    vi.mocked(conceptsApi.listConcepts).mockRejectedValue(new Error('500 Server Error'))
+    vi.mocked(conceptsApi.getGraph).mockRejectedValue(new Error('500 Server Error'))
 
     wrap(<CanvasPage />)
     await screen.findByRole('alert')
-    expect(conceptsApi.listConcepts).toHaveBeenCalledTimes(1)
+    expect(conceptsApi.getGraph).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: /Reintentar/ }))
 
-    await waitFor(() => expect(conceptsApi.listConcepts).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(conceptsApi.getGraph).toHaveBeenCalledTimes(2))
   })
 })
 
 describe('CanvasPage: el guardado que falla', () => {
   beforeEach(() => {
-    vi.mocked(conceptsApi.listConcepts).mockResolvedValue(CONCEPTOS)
-    vi.mocked(conceptsApi.listOperands).mockImplementation(async (_rs, conceptCode) =>
-      conceptCode === '700' ? OPERANDOS_DE_700 : [],
-    )
-    vi.mocked(conceptsApi.listFeeds).mockResolvedValue([])
+    vi.mocked(conceptsApi.getGraph).mockResolvedValue(GRAFO)
   })
 
   it('deja de volver a «Guardar» como si nada, y nombra el concepto que no se guardó', async () => {

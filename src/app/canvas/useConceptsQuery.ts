@@ -32,13 +32,14 @@ export function useConceptGraph(ruleSystemCode: string, enabled = true) {
     enabled,
     queryKey: ['concepts', ruleSystemCode],
     queryFn: async () => {
-      const concepts = await conceptsApi.listConcepts(ruleSystemCode)
-      const allOperands = await Promise.all(
-        concepts.map(c => conceptsApi.listOperands(ruleSystemCode, c.conceptCode))
-      )
-      const allFeeds = await Promise.all(
-        concepts.map(c => conceptsApi.listFeeds(ruleSystemCode, c.conceptCode))
-      )
+      // Una llamada y no `1 + 2N` (`designer#15`). Antes se pedia la lista de conceptos y luego,
+      // de uno en uno, los operandos y las alimentaciones de cada uno: 78 peticiones con los 38
+      // conceptos de ESP y 200 con un catalogo de 99, y 198 de esas 200 devolvian entre cero y
+      // dos elementos.
+      //
+      // Cachear mas aqui no era el arreglo: react-query ya cachea por `queryKey`, y el problema
+      // no era repetir la carga sino que la primera costara 200 viajes.
+      const { concepts, operands, feeds } = await conceptsApi.getGraph(ruleSystemCode)
 
       const savedPositions = loadPositions(ruleSystemCode)
       const nodes: ConceptFlowNode[] = concepts.map((c, i) => ({
@@ -59,32 +60,29 @@ export function useConceptGraph(ruleSystemCode: string, enabled = true) {
         },
       }))
 
-      const edges: ConceptFlowEdge[] = []
-      concepts.forEach((c, i) => {
-        allOperands[i].forEach(op => {
-          const role = ROLE_TO_HANDLE[op.operandRole] ?? op.operandRole.toLowerCase()
-          edges.push({
-            id: `op-${op.sourceObjectCode}-${c.conceptCode}-${op.operandRole}`,
-            type: 'deletable',
-            source: op.sourceObjectCode,
-            sourceHandle: 'out',
-            target: c.conceptCode,
-            targetHandle: role,
-            data: { operandRole: op.operandRole },
-          })
-        })
-        allFeeds[i].forEach(feed => {
-          edges.push({
-            id: `feed-${feed.sourceObjectCode}-${c.conceptCode}`,
-            type: 'deletable',
-            source: feed.sourceObjectCode,
-            sourceHandle: 'out',
-            target: c.conceptCode,
-            targetHandle: 'feed',
-            data: { invertSign: feed.invertSign },
-          })
-        })
-      })
+      // Las aristas ya vienen planas y cada una sabe a que concepto apunta, asi que aqui no hay
+      // que casarlas con nada por indice: los identificadores son los mismos de antes, que es lo
+      // que hace que el salto al nodo y el resalte del recalculo sigan encontrandolas.
+      const edges: ConceptFlowEdge[] = [
+        ...operands.map(op => ({
+          id: `op-${op.sourceObjectCode}-${op.conceptCode}-${op.operandRole}`,
+          type: 'deletable' as const,
+          source: op.sourceObjectCode,
+          sourceHandle: 'out',
+          target: op.conceptCode,
+          targetHandle: ROLE_TO_HANDLE[op.operandRole] ?? op.operandRole.toLowerCase(),
+          data: { operandRole: op.operandRole },
+        })),
+        ...feeds.map(feed => ({
+          id: `feed-${feed.sourceObjectCode}-${feed.conceptCode}`,
+          type: 'deletable' as const,
+          source: feed.sourceObjectCode,
+          sourceHandle: 'out',
+          target: feed.conceptCode,
+          targetHandle: 'feed',
+          data: { invertSign: feed.invertSign },
+        })),
+      ]
 
       return { nodes, edges }
     },
