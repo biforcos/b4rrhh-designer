@@ -3713,6 +3713,8 @@ export interface components {
              * @description Annual working hours used for derivation of weekly, daily, and monthly hours. Typical values 1560 (Spain 40 hours/week), 1800 (40h/week * 45 weeks), etc.
              */
             annualHours: number;
+            /** @description Whether this agreement prorates the extra payments by default. This is the value hiring copies into the employee's extra-payment regime vertical; it is not what decides a payslip. Copied, not linked: an agreement that changes later does not move the employees already hired under it. */
+            extraPaymentsProrated: boolean;
             /** @description Whether the agreement profile is currently active */
             active: boolean;
         };
@@ -3728,6 +3730,8 @@ export interface components {
              * @description Annual working hours for working time derivation. Range 1-9999.99.
              */
             annualHours: number;
+            /** @description Whether this agreement prorates the extra payments by default. Defaults to false if not specified. */
+            extraPaymentsProrated?: boolean;
             /** @description Whether the agreement profile should be active. Defaults to true if not specified. */
             active?: boolean | null;
         };
