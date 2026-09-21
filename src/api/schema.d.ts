@@ -4073,7 +4073,7 @@ export interface components {
             /** @enum {string} */
             calculationType: "DIRECT_AMOUNT" | "RATE_BY_QUANTITY" | "PERCENTAGE" | "AGGREGATE" | "JAVA_PROVIDED" | "EMPLOYEE_INPUT";
             /** @enum {string} */
-            functionalNature: "EARNING" | "DEDUCTION" | "BASE" | "INFORMATIONAL" | "TECHNICAL" | "TOTAL_EARNING" | "TOTAL_DEDUCTION" | "NET_PAY";
+            functionalNature: "EARNING" | "DEDUCTION" | "BASE" | "INFORMATIONAL" | "TECHNICAL" | "TOTAL_EARNING" | "TOTAL_DEDUCTION" | "TOTAL_EMPLOYER_CONTRIBUTION" | "NET_PAY";
             /** @enum {string} */
             executionScope: "SEGMENT" | "PERIOD";
             payslipOrderCode?: string | null;
