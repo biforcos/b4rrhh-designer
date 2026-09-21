@@ -3520,17 +3520,31 @@ export interface components {
         AgreementCategoryCatalogItemResponse: {
             code: string;
             name?: string | null;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description The first day this option can actually be used: the intersection of three validities, the agreement's, the category's and that of the agreement-category relation that joins them. The third one is the reason this field exists -- it is not readable anywhere else in the API, and a client that needed it had to find it by probing dates (backend#115).
+             *     Null means the server does not know, never "valid since forever". Do not substitute a date of your own for a null.
+             */
             startDate?: string | null;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description The last day, by the same rule. Null when none of the three expires.
+             */
             endDate?: string | null;
         };
         ContractSubtypeCatalogItemResponse: {
             code: string;
             name?: string | null;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description The first day this option can actually be used: the intersection of three validities, the contract type's, the subtype's and that of the contract type-subtype relation that joins them. The third one is the reason this field exists -- it is not readable anywhere else in the API, and a client that needed it had to find it by probing dates (backend#115).
+             *     Null means the server does not know, never "valid since forever". Do not substitute a date of your own for a null.
+             */
             startDate?: string | null;
-            /** Format: date */
+            /**
+             * Format: date
+             * @description The last day, by the same rule. Null when none of the three expires.
+             */
             endDate?: string | null;
         };
         CatalogFieldBindingResponse: {
