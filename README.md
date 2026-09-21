@@ -7,8 +7,13 @@ dependency graph that is configuration rather than code, so any amount on a pays
 opened all the way down to the step that produced it.
 
 This repository is where that graph is drawn — and edited. Everything else — the other
-repositories and the documents they share — starts at **`b4rrhh/workspace`**, which is
-[`../README.md`](../README.md) once it is laid out beside this one.
+repositories and the documents they share — starts at the workspace repository, which is
+[`../README.md`](../README.md) once it is laid out beside this one. **That repository is
+not mirrored to GitHub**, so if you arrived from
+[github.com/biforcos](https://github.com/biforcos) this page is the way in, and the
+siblings to lay out beside it are `b4rrhh-backend`, `b4rrhh-frontend`, `b4rrhh-designer`
+and `b4rrhh-workforce-loader`, cloned into `b4rrhh_backend`, `b4rrhh_frontend`,
+`b4rrhh_designer` and `b4rrhh_workforce_loader`.
 
 ---
 
@@ -116,6 +121,14 @@ The only file that is genuinely this repository's is `site.webmanifest`, which h
 ## Tech
 
 React, TypeScript, Vite, Tailwind, Vitest.
+
+## Where the backlog is
+
+The threads that produced these decisions live in a **private Gitea** and are not
+mirrored: the Issues tab here is empty, and a `(#93)` or a `b4rrhh/backend#91` in a commit
+message points at something you cannot open from GitHub. It is a known limitation, and it
+leaves in reach the half that is worth more anyway — **the why is written inside the
+commit**, not behind the link.
 
 ## License
 
