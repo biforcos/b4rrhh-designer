@@ -394,6 +394,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/extra-payment-regimes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List employee extra payment regimes by business key */
+        get: operations["listEmployeeExtraPaymentRegimesByBusinessKey"];
+        put?: never;
+        /** Create employee extra payment regime by business key */
+        post: operations["createExtraPaymentRegimeByBusinessKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/extra-payment-regimes/{extraPaymentRegimeNumber}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get employee extra payment regime by business key */
+        get: operations["getExtraPaymentRegimeByBusinessKey"];
+        /** Correct an extra payment regime stretch (dates and/or regime) */
+        put: operations["updateExtraPaymentRegimeByBusinessKey"];
+        post?: never;
+        /**
+         * Remove an extra payment regime
+         * @description Removing the last extra payment regime reopens the previous one up to where the removed one ended (ADR-057). Removing one in the middle would leave the presence uncovered and is rejected: the error names the neighbours the user could stretch first.
+         */
+        delete: operations["deleteExtraPaymentRegimeByBusinessKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/extra-payment-regimes/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plan a change to the extra payment regime series without applying it
+         * @description Answers what adding, removing or correcting an extra payment regime would do to the series (ADR-057): what would be closed or reopened, what gap or overlap would appear, and the series as it would be. Nothing is written. A rejected plan is still a 200: the rejection and its reasons are in the body, so the screen can show them before the user confirms.
+         */
+        post: operations["planExtraPaymentRegimeChangeByBusinessKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/cost-centers": {
         parameters: {
             query?: never;
@@ -3256,6 +3316,115 @@ export interface components {
              */
             monthlyHours: number;
         };
+        CreateExtraPaymentRegimeRequest: {
+            /**
+             * Format: date
+             * @description Start date of the extra payment regime period (yyyy-MM-dd).
+             */
+            startDate: string;
+            /**
+             * Format: date
+             * @description End date of the extra payment regime period (yyyy-MM-dd). Omit it for a extra payment regime that is still in force.
+             */
+            endDate?: string | null;
+            /** @description Whether the extra payments are prorated over this stretch. Hiring copies the flag the collective agreement carries; anyone asking for it here is choosing it. */
+            prorated: boolean;
+        };
+        UpdateExtraPaymentRegimeRequest: {
+            /**
+             * Format: date
+             * @description The start date the extra payment regime has after the correction (yyyy-MM-dd). Required, like in every temporal series (backend#69): correcting without moving the start is said by repeating the date it already has. No neighbour is adjusted: if the new dates leave a gap or an overlap the correction is rejected and the error names what to stretch.
+             */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Corrected end date (yyyy-MM-dd). Omit it, or send null, to leave the extra payment regime open.
+             */
+            endDate?: string | null;
+            /** @description Whether the extra payments are prorated over this stretch. Hiring copies the flag the collective agreement carries; anyone asking for it here is choosing it. */
+            prorated: boolean;
+        };
+        PlanExtraPaymentRegimeChangeRequest: {
+            /**
+             * @description ADD plans a new extra payment regime from startDate to endDate; REMOVE plans removing extraPaymentRegimeNumber; CORRECT plans giving extraPaymentRegimeNumber the dates startDate to endDate.
+             * @enum {string}
+             */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            /**
+             * Format: int32
+             * @description Required for REMOVE and CORRECT.
+             */
+            extraPaymentRegimeNumber?: number;
+            /**
+             * Format: date
+             * @description Required for ADD and CORRECT.
+             */
+            startDate?: string;
+            /**
+             * Format: date
+             * @description Omit it for a extra payment regime that stays open.
+             */
+            endDate?: string | null;
+        };
+        ExtraPaymentRegimePeriod: {
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null means onwards.
+             */
+            endDate?: string | null;
+        };
+        ExtraPaymentRegimeOccurrence: {
+            /**
+             * Format: int32
+             * @description Null only for the extra payment regime a plan would add, which has no number yet.
+             */
+            extraPaymentRegimeNumber?: number | null;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+        };
+        /** @description The one existing extra payment regime the plan would move on its own. Only its end date changes. */
+        ExtraPaymentRegimePlanAdjustment: {
+            /** Format: int32 */
+            extraPaymentRegimeNumber: number;
+            before: components["schemas"]["ExtraPaymentRegimePeriod"];
+            after: components["schemas"]["ExtraPaymentRegimePeriod"];
+        };
+        ExtraPaymentRegimePlanResponse: {
+            /** @enum {string} */
+            operation: "ADD" | "REMOVE" | "CORRECT";
+            accepted: boolean;
+            /**
+             * @description Why the plan cannot be applied. Null when accepted. IS_A_CORRECTION means the plan is not the operation it was asked for: an ADD whose start date is the start date of an existing extra payment regime is the correction of that one (named in correctedOccurrence) and has to be asked for as a CORRECT.
+             * @enum {string|null}
+             */
+            rejection?: "OUTSIDE_PRESENCE" | "OVERLAP" | "GAP_NOT_ALLOWED" | "IS_A_CORRECTION" | null;
+            occurrence: components["schemas"]["ExtraPaymentRegimeOccurrence"];
+            /** @description On a correction, the extra payment regime as it stands today, the one occurrence replaces. Null on an add and on a removal. */
+            correctedOccurrence?: components["schemas"]["ExtraPaymentRegimeOccurrence"] | null;
+            adjustedOccurrence?: components["schemas"]["ExtraPaymentRegimePlanAdjustment"] | null;
+            /** @description Dates two extra payment regimes would share. */
+            overlaps: components["schemas"]["ExtraPaymentRegimePeriod"][];
+            /** @description Stretches of the presence the resulting series would leave uncovered. */
+            gaps: components["schemas"]["ExtraPaymentRegimePeriod"][];
+            /** @description The neighbours of the gaps, which the user could stretch. Named, never moved. */
+            stretchCandidates: components["schemas"]["ExtraPaymentRegimeOccurrence"][];
+            /** @description The series as it would be, accepted or not. */
+            projected: components["schemas"]["ExtraPaymentRegimeOccurrence"][];
+        };
+        ExtraPaymentRegimeResponse: {
+            /** Format: int32 */
+            extraPaymentRegimeNumber: number;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+            /** @description Whether the extra payments are prorated over this stretch. Hiring copies the flag the collective agreement carries; anyone asking for it here is choosing it. */
+            prorated: boolean;
+        };
         CreateContractRequest: {
             /** @description Code validated against active CONTRACT rule entities for the employee ruleSystemCode. */
             contractCode: string;
@@ -5859,6 +6028,247 @@ export interface operations {
                 content?: never;
             };
             /** @description Employee or working time not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listEmployeeExtraPaymentRegimesByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Extra payment regime list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtraPaymentRegimeResponse"][];
+                };
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createExtraPaymentRegimeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExtraPaymentRegimeRequest"];
+            };
+        };
+        responses: {
+            /** @description Extra payment regime added. If an existing extra payment regime was in force on the new start date it has been closed the day before (ADR-057): that is the only automatic consequence. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtraPaymentRegimeResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The resulting series would break an invariant (ADR-057). Error codes: EXTRA_PAYMENT_REGIME_OVERLAP (details.overlaps names the shared dates), EXTRA_PAYMENT_REGIME_COVERAGE_GAP (details.gaps names the uncovered stretches of the presence and details.stretchCandidates the neighbouring extra payment regimes the user could stretch), EXTRA_PAYMENT_REGIME_OUTSIDE_PRESENCE, EXTRA_PAYMENT_REGIME_IS_A_CORRECTION (the new extra payment regime starts on the start date of an existing one, named in details.correctedOccurrence: it would correct that one, not add a second one, and has to be asked for as a correction), or EXTRA_PAYMENT_REGIME_NUMBER_CONFLICT. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getExtraPaymentRegimeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                extraPaymentRegimeNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Extra payment regime found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtraPaymentRegimeResponse"];
+                };
+            };
+            /** @description Employee or extra payment regime not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateExtraPaymentRegimeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                extraPaymentRegimeNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExtraPaymentRegimeRequest"];
+            };
+        };
+        responses: {
+            /** @description Extra payment regime corrected. Nothing else moves (ADR-057): stretching or shrinking a neighbour is a separate, explicit correction. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtraPaymentRegimeResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee or extra payment regime not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The corrected dates would break an invariant (ADR-057): EXTRA_PAYMENT_REGIME_OVERLAP, EXTRA_PAYMENT_REGIME_COVERAGE_GAP (details name the gap and the neighbour to stretch) or EXTRA_PAYMENT_REGIME_OUTSIDE_PRESENCE. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteExtraPaymentRegimeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                extraPaymentRegimeNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Extra payment regime removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee or extra payment regime not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description EXTRA_PAYMENT_REGIME_COVERAGE_GAP: removing it would leave the presence uncovered; details.gaps and details.stretchCandidates say where and what to stretch. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    planExtraPaymentRegimeChangeByBusinessKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanExtraPaymentRegimeChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description The plan, accepted or rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtraPaymentRegimePlanResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee or extra payment regime not found */
             404: {
                 headers: {
                     [name: string]: unknown;
