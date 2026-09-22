@@ -3780,6 +3780,11 @@ export interface components {
             legalName: string;
             taxIdentifier?: string | null;
             address?: components["schemas"]["CompanyAddress"];
+            /**
+             * @description The company's economic activity, in CNAE. It is what the AT/EP premium rate of its employees' payroll is looked up by, so leaving it out on an update clears it and the next payroll run for that company fails.
+             * @example 4719
+             */
+            cnaeCode?: string | null;
         };
         UpdateCompanyRequest: {
             name: string;
@@ -3787,6 +3792,11 @@ export interface components {
             legalName: string;
             taxIdentifier?: string | null;
             address?: components["schemas"]["CompanyAddress"];
+            /**
+             * @description The company's economic activity, in CNAE. It is what the AT/EP premium rate of its employees' payroll is looked up by, so leaving it out on an update clears it and the next payroll run for that company fails.
+             * @example 4719
+             */
+            cnaeCode?: string | null;
         };
         CompanyResponse: {
             ruleSystemCode: string;
@@ -3801,6 +3811,11 @@ export interface components {
             legalName: string;
             taxIdentifier?: string | null;
             address: components["schemas"]["CompanyAddress"];
+            /**
+             * @description The company's economic activity, in CNAE. Null when the company does not declare one.
+             * @example 4719
+             */
+            cnaeCode?: string | null;
         };
         CompanyListItemResponse: {
             ruleSystemCode: string;
@@ -3831,10 +3846,10 @@ export interface components {
             taxIdentifier?: string | null;
             address?: components["schemas"]["CompanyProfileAddress"];
             /**
-             * @description Epígrafe AT/EP de la empresa ante la TGSS (código de tarifa de accidentes de trabajo)
-             * @example 6210
+             * @description The company's economic activity, in CNAE. It is what the AT/EP premium rate is looked up by: the tariff lists two-, three- and four-digit entries and the most specific one covering this code wins. It was called epigrafeAtCode until b4rrhh/backend#122 and the old name is gone, with no alias: the "epigrafe" is the pre-2007 tariff and means nothing today.
+             * @example 4719
              */
-            epigrafeAtCode?: string | null;
+            cnaeCode?: string | null;
         };
         CompanyProfileResponse: {
             companyCode: string;
@@ -3842,10 +3857,10 @@ export interface components {
             taxIdentifier?: string | null;
             address: components["schemas"]["CompanyProfileAddress"];
             /**
-             * @description Epígrafe AT/EP registrado ante la TGSS
-             * @example 6210
+             * @description The company's economic activity, in CNAE. Null when the company does not declare one, and then its employees' payroll cannot resolve the AT/EP premium rate: the run fails instead of contributing zero, because a zero there is a wrong figure that nothing reports.
+             * @example 4719
              */
-            epigrafeAtCode?: string | null;
+            cnaeCode?: string | null;
         };
         CompanyProfileErrorResponse: {
             message: string;
@@ -4226,6 +4241,11 @@ export interface components {
              * @example DEVENGOS
              */
             payslipSectionCode?: string | null;
+            /**
+             * @description The part of that block this line was printed in, frozen with the line. Null is the normal case — a line is printed in its block with nothing above it — and only the contribution-bases box has parts today: the four numbered sections of the official model. Unlike the section, this does NOT follow from the nature: the ten lines of that box are all BASE and live in four different parts, so it is declared by the concept. Group by it inside the block and order the parts by the displayOrder that GET /payroll-engine/{ruleSystemCode}/payslip-sections gives each one.
+             * @example BASE_CC
+             */
+            payslipSubsectionCode?: string | null;
         };
         PayrollSummaryResponse: {
             ruleSystemCode: string;
@@ -4294,6 +4314,20 @@ export interface components {
             /**
              * Format: int32
              * @description Where this block goes relative to the others. Order the blocks by this, and the lines inside each block by their own displayOrder.
+             */
+            displayOrder: number;
+            /** @description The parts this block is divided into, in print order. Empty in four of the five blocks of the official model, which is the normal case: earnings print as one list. The contribution-bases box has four numbered parts, and a line lands in one of them through its payslipSubsectionCode. */
+            subsections?: components["schemas"]["PayslipSubsectionResponse"][];
+        };
+        /** @description One part of a payslip block. Which part a line belongs to is declared by its concept and does not follow from its nature: the ten lines of the contribution-bases box are all BASE and live in four different parts. */
+        PayslipSubsectionResponse: {
+            /** @example BASE_CC */
+            subsectionCode: string;
+            /** @example 1. Contingencias comunes */
+            label: string;
+            /**
+             * Format: int32
+             * @description Where this part goes inside its block.
              */
             displayOrder: number;
         };
