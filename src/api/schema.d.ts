@@ -1054,6 +1054,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/address-types/{ruleSystemCode}/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Coverage of every employee address type of a rule system
+         * @description Whether an employee has to have an address of each type while present (`MANDATORY`) or may have none (`OPTIONAL`), as the catalog declares it (V117, b4rrhh/backend#145). It is the rule the address series applies: closing the mandatory one while the presence goes on is refused with 409 `ADDRESS_COVERAGE_GAP`, closing an optional one is accepted. With it a client can offer «close» only where it would be accepted.
+         */
+        get: operations["listEmployeeAddressTypeProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agreement-categories/{ruleSystemCode}/{categoryCode}/profile": {
         parameters: {
             query?: never;
@@ -1209,6 +1229,8 @@ export interface paths {
          *     - request `referenceDate` when provided
          *     - current date when omitted
          *     The `active` flag for each item is resolved against this effective date.
+         *     `name` comes in the language of `Accept-Language` when the option is translated,
+         *     and in the base literal otherwise (b4rrhh/backend#143).
          */
         get: operations["getDirectCatalogOptions"];
         put?: never;
@@ -1312,7 +1334,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search payrolls */
+        /**
+         * Search payrolls
+         * @description One page of the payrolls that match the filters, with the total (b4rrhh/frontend#93). Before, this returned a bare list cut at 500 without saying so. Ordered by period, most recent first; within a period, the ones not yet closed (not DEFINITIVE) come before the closed ones, then by employee number, presence and payroll type. So the first payroll of an unfiltered search belongs to the open period, and one employee's list starts with the month in progress.
+         */
         get: operations["searchPayrolls"];
         put?: never;
         post?: never;
@@ -2161,10 +2186,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/retro-marks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the retroactivity marks of an employee
+         * @description Las marcas de retroactividad del empleado, todas y en su estado (backend#130). Todas y no solo las activas: una marca descartada sigue visible con quien y por que la descarto -es la razon de que descartar no borre- y una consumida dice que recibo la pago.
+         */
+        get: operations["listEmployeeRetroMarks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payroll/retro-marks/{id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard a retroactivity mark, with a reason
+         * @description Decide que esa correccion no se paga (backend#130). No es un borrado: la fila se queda en DISCARDED con quien y con por que, porque el recibo tiene que poder contar que habia una correccion conocida que alguien decidio no pagar. Solo desde ACTIVE.
+         */
+        post: operations["discardRetroMark"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payrolls/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/{payrollPeriodCode}/{payrollTypeCode}/{presenceNumber}/arrears-explanation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Where each arrears line of this payroll comes from
+         * @description La explicacion de las lineas de atraso de un recibo (backend#134). Es la condicion de este camino aplicada al paso dificil: el recibo tiene que seguir explicandose cuando la nomina deja de ser facil.
+         *     Una linea de atraso NO se explica con una travesia del grafo, porque no viene de ningun paso de este calculo -su mergedStepCount es cero-. Se explica con tres numeros: agosto vale hoy X, por agosto se habia pagado Y, esta linea es X menos Y. Por eso este endpoint esta al lado de /steps y no dentro: meter las lineas de atraso en la lista de pasos habria obligado a inventar pasos que no existen.
+         *     La Y es lo pagado ANTES de este recibo: sin excluirlo, la diferencia de un recibo ya cerrado saldria cero, porque su propia linea ya estaria contada como pagada.
+         *     Un recibo sin lineas de atraso contesta 200 con la lista vacia, y eso es el caso normal.
+         */
+        get: operations["explainPayrollArrears"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description De donde sale una linea de atraso (backend#134). */
+        ArrearExplanationResponse: {
+            /**
+             * @description El mes al que pertenece la linea.
+             * @example 202508
+             */
+            originPeriodCode: string;
+            /** @example 102 */
+            conceptCode: string;
+            /**
+             * @description El literal congelado en la linea: el del concepto, tal cual (backend#138). El mes de origen va en originPeriodCode y no en el nombre; decirlo en los dos sitios era decirlo dos veces. Tampoco es un concepto nuevo por mes: un catalogo con "Salario base de agosto" y "Salario base de septiembre" como conceptos distintos se llenaria de conceptos que no son conceptos.
+             * @example Horas extraordinarias
+             */
+            conceptLabel: string;
+            /** @description Lo que la linea dice. Es el documento, y es lo que manda. */
+            lineAmount: number;
+            /** @description La X: lo que ese mes vale HOY para ese concepto, leido de su calculo vigente. Cero si no hay vigente, y entonces currentValueCalculatedAt viene a null y lo dice en vez de callarlo. */
+            currentValue: number;
+            /**
+             * Format: date-time
+             * @description Cuando se calculo ese vigente.
+             */
+            currentValueCalculatedAt?: string | null;
+            /** @description La Y: lo pagado atribuido a ese mes ANTES de este recibo. Sin excluir este recibo, un recibo ya cerrado se contaria a si mismo. */
+            alreadyPaid: number;
+            /** @description El desglose de la Y, un renglon por recibo que pago algo. Es la mitad que la hace util: "por agosto se han pagado 59,40" no explica nada, y "el recibo de agosto pago 0 y el de septiembre pago 59,40 como atraso" si. */
+            paidIn: components["schemas"]["ArrearPaidInResponse"][];
+            /** @description X menos Y, que es lo que esta linea deberia valer. */
+            difference: number;
+            /** @description Si los tres numeros cuadran con el importe de la linea. Puede ser false, y no es un defecto de la explicacion: pasa cuando esta linea se pago en una corrida anterior y desde entonces el vigente se ha vuelto a pisar. Decirlo es mejor que esconderlo: la pantalla lo puede marcar en vez de ensenar tres numeros que no suman. */
+            addsUp: boolean;
+        };
+        ArrearPaidInResponse: {
+            /**
+             * @description El recibo que pago.
+             * @example 202509
+             */
+            payrollPeriodCode: string;
+            /** @description Cuanto pago atribuido al mes de origen. En el propio mes es su linea normal; en un mes posterior es una linea de atraso. */
+            amount: number;
+        };
+        /** @description Una marca de retroactividad: el pasado de este empleado ha cambiado desde tal mes (backend#130). */
+        RetroMarkResponse: {
+            /** Format: int64 */
+            id: number;
+            /**
+             * @description La presencia a la que alcanza. Un recibo es de una presencia, asi que la marca tambien: unas horas metidas a la presencia 1 de un readmitido no obligan a recalcular la 2.
+             * @example 1
+             */
+            presenceNumber: number;
+            /**
+             * @description El periodo al que la escritura fue, y desde el que se recalcula hacia delante. Leido del otro lado es "hasta que mes alcanza esta marca".
+             * @example 202608
+             */
+            fromPeriodCode: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "DISCARDED" | "CONSUMED";
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * @description Que vertical la genero, que es por lo que se agrupa.
+             * @example ABSENCE
+             */
+            sourceVerticalCode: string;
+            /** @example employee.employee_absence */
+            sourceTable: string;
+            /**
+             * Format: int64
+             * @description La fila que la genero, o null si la escritura fue un borrado: entonces la marca es lo unico que queda de ella.
+             */
+            sourceRowId?: number | null;
+            /**
+             * @description La clave de negocio de la fila, en texto, para las verticales que no tienen id surrogado: una entrada de nomina se identifica por concepto y periodo. Null cuando el id ya la identifica.
+             * @example OVERTIME/202608
+             */
+            sourceRowKey?: string | null;
+            /** Format: date-time */
+            discardedAt?: string | null;
+            discardedBy?: string | null;
+            discardReason?: string | null;
+            /** Format: date-time */
+            consumedAt?: string | null;
+            /**
+             * @description El periodo del recibo que la pago.
+             * @example 202609
+             */
+            consumedPeriodCode?: string | null;
+            /** Format: int64 */
+            consumedRunId?: number | null;
+            /** @description Activa y sin ningun recibo que la pueda pagar (backend#139): su presencia ceso y el recibo del mes del cese ya esta cerrado. No se paga en la presencia nueva -eso seria un finiquito complementario, otro recibo y otro camino (ADR-076 §8)-; la corrida lo cuenta en sus mensajes y la ficha lo dice. Falso en una marca pagada o descartada. */
+            withoutAReceiptToPayIt: boolean;
+        };
+        DiscardRetroMarkRequest: {
+            /**
+             * @description Por que no se paga. Obligatorio: sin motivo el recibo no puede contar que la habia.
+             * @example Las horas ya se pagaron en mano en agosto
+             */
+            discardReason: string;
+        };
+        RetroMarkErrorResponse: {
+            error?: string;
+            message?: string;
+        };
         RuleEntityTranslationCoverageResponse: {
             /** @example es-ES */
             languageCode: string;
@@ -2216,6 +2407,16 @@ export interface components {
             calculationEngineCode: string;
             calculationEngineVersion: string;
             targetSelection: components["schemas"]["PayrollLaunchTargetSelectionRequest"];
+            /**
+             * @description Hasta que mes atras permite recalcular este lanzamiento (backend#132). El formulario propone un valor CON SU MOTIVO ESCRITO al lado -doce meses atras, por el lio con seguros sociales y Hacienda mas atras de eso- y quien lanza lo confirma o lo cambia; no es un 12 magico. Si falta, la corrida no recalcula ningun mes cerrado, y si habia empleados con marcas activas lo dice en sus mensajes (RETRO_SKIPPED_NO_LIMIT): no puede inventarse hasta donde tiene permiso, y tampoco puede dejar de pagar un atraso en silencio.
+             * @example 202510
+             */
+            retroLimitPeriodCode?: string;
+            /**
+             * @description Suelo obligatorio para todos: todo empleado del lanzamiento recalcula desde aqui aunque no tenga ninguna marca. Es la forma humana de una revision de convenio -"todos desde enero"- y nulo es lo normal. Un suelo mas antiguo que el limite se rechaza con un 400: son dos cosas contrarias y no hay forma de cumplir las dos. Un suelo sin limite tambien, porque sin limite no hay retro y el suelo no llegaria a ninguna parte.
+             * @example 202601
+             */
+            retroFloorPeriodCode?: string | null;
         };
         PayrollCalculationRunResponse: {
             /** Format: int64 */
@@ -2233,6 +2434,25 @@ export interface components {
              * @description Expanded candidate calculation units after presence overlap resolution for the payroll month.
              */
             totalCandidates: number;
+            /** @description Con que limite de retroactividad se calculo esta corrida (backend#132). Null en las corridas de antes del #132 y en las que no hacen retro. El recibo y la checklist lo leen de aqui. */
+            retroLimitPeriodCode?: string | null;
+            /** @description El suelo para todos con el que se calculo, si lo hubo. */
+            retroFloorPeriodCode?: string | null;
+            /**
+             * Format: int32
+             * @description El universo de la retro: unidades EMPLEADO x MES que hay que recalcular, contadas una vez y al principio, como totalCandidates. Es una terna aparte y no se suma a los nueve contadores del recibo, porque una unidad de retro no acaba en ninguno de esos cajones: no escribe recibo, escribe calculo vigente. El trabajo de verdad de la corrida, que es lo que la pantalla tiene que ensenar, es totalCandidates + totalRetroUnits.
+             */
+            totalRetroUnits: number;
+            /**
+             * Format: int32
+             * @description Vigentes escritos. Su particion es totalRetroUnits = recalculated + notRecalculated.
+             */
+            totalRetroRecalculated: number;
+            /**
+             * Format: int32
+             * @description Meses del tramo que no se pudieron recalcular, cada uno con su mensaje en la corrida (RETRO_MONTH_NOT_RECALCULATED). No es un error: el recibo de aquel mes no se ha tocado y el resto del tramo ha seguido.
+             */
+            totalRetroNotRecalculated: number;
             /**
              * Format: int32
              * @description Accumulator, not a total: it rises for every unit that passes the eligibility filter, and it includes the ones later skipped for missing input or ending in error. The denominator of any percentage is totalCandidates.
@@ -2397,7 +2617,9 @@ export interface components {
             preferredName?: string | null;
             /** Format: date */
             hireDate: string;
-            entryReasonCode: string;
+            identifier: components["schemas"]["LifecycleIdentifierRequest"];
+            /** @description Optional. A hire is always a `HIRING` (b4rrhh/backend#143): when omitted it enters as `HIRING`, and any other code is rejected with 422 `HIRE_ENTRY_REASON_NOT_HIRING`. A former employee comes back through the rehire; `TRANSFER_IN` has no flow yet. */
+            entryReasonCode?: string;
             companyCode: string;
             workCenterCode: string;
             costCenterDistribution?: components["schemas"]["CreateCostCenterDistributionInWorkflowRequest"];
@@ -2507,6 +2729,19 @@ export interface components {
             workCenter: components["schemas"]["RehireWorkCenterRequest"];
             costCenterDistribution?: components["schemas"]["CreateCostCenterDistributionInWorkflowRequest"];
             workingTime: components["schemas"]["RehireEmployeeWorkingTimeRequest"];
+            /** @description Optional. When it comes it must be the rehired employee's own: one of another employee is rejected with 409 `REHIRE_IDENTIFIER_OF_ANOTHER_EMPLOYEE`, and so is a different value of a type he already has. If he has none of that type it is kept. */
+            identifier?: components["schemas"]["LifecycleIdentifierRequest"];
+        };
+        /** @description The document that identifies the person (b4rrhh/backend#141). A hire keeps it as the primary identifier and refuses it if another employee of the rule system already has it, compared without case or spaces. `NATIONAL_ID` issued by `ESP` is checked as a DNI or a NIE, letter included. */
+        LifecycleIdentifierRequest: {
+            /** @example NATIONAL_ID */
+            identifierTypeCode: string;
+            /** @example 12345678Z */
+            identifierValue: string;
+            /** @example ESP */
+            issuingCountryCode?: string | null;
+            /** Format: date */
+            expirationDate?: string | null;
         };
         RehireEmployeeWorkingTimeRequest: {
             workingTimePercentage: number;
@@ -2683,6 +2918,25 @@ export interface components {
             photoUrl?: string | null;
             /** @description Computed display name based on the rule system's configured format. */
             displayName: string;
+        };
+        /** @description One page of the payroll search (b4rrhh/frontend#93), shaped like the employee directory page. `total` counts every payroll that matches the same filters, not the rows on the page. */
+        PayrollSearchPageResponse: {
+            items: components["schemas"]["PayrollSummaryResponse"][];
+            /**
+             * Format: int32
+             * @description Zero-based index of this page.
+             */
+            page: number;
+            /**
+             * Format: int32
+             * @description Page size that was applied (the default when none was requested).
+             */
+            size: number;
+            /**
+             * Format: int64
+             * @description Payrolls matching the filters, across all pages.
+             */
+            total: number;
         };
         /** @description One page of the directory. `total` counts every employee that matches the same filters, not the rows on the page: it is what tells "nobody by that name" apart from "nobody else on this page". */
         EmployeeDirectoryPageResponse: {
@@ -3878,6 +4132,14 @@ export interface components {
              */
             tipoNomina: "MENSUAL" | "DIARIO";
         };
+        EmployeeAddressTypeProfilesResponse: {
+            ruleSystemCode: string;
+            items: {
+                addressTypeCode: string;
+                /** @enum {string} */
+                coverage: "MANDATORY" | "OPTIONAL";
+            }[];
+        };
         AgreementCategoryProfileResponse: {
             categoryCode: string;
             /** @description Grupo de cotización SS (01–11) */
@@ -4643,6 +4905,11 @@ export interface components {
             endDate?: string | null;
             /** @example 17:30 */
             endTime?: string | null;
+            /**
+             * @description Si la baja lleva derecho a prestacion economica (backend#129). Omitirlo es dejarla con derecho, que es el caso normal. Solo significa algo en IT_COMMON: en los demas tipos de ausencia no hay prestacion a la que tener derecho. Lo decide el INSS con la carencia del art. 172.a) de la LGSS -180 dias cotizados en cinco anos-, que es la vida del empleado fuera de esta empresa: la nomina no lo calcula, lo lee.
+             * @example true
+             */
+            benefitEntitled?: boolean | null;
         };
         AbsenceResponse: {
             /** @example VACATION */
@@ -4661,6 +4928,11 @@ export interface components {
             endDate?: string | null;
             /** @example null */
             endTime?: string | null;
+            /**
+             * @description Si la baja lleva derecho a prestacion economica (backend#129). Sin el, la baja quita dias igual y no paga prestacion ni cotiza.
+             * @example true
+             */
+            benefitEntitled: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -4780,12 +5052,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Employee already exists. */
+            /** @description Employee already exists, or the identifier of the hire already belongs to another employee of the rule system (`HIRE_IDENTIFIER_ALREADY_EXISTS`, b4rrhh/backend#141). In that case `details` names the owner: `employeeTypeCode`, `employeeNumber`, `active` and `ceasedOn` (the last day of his last presence, when ceased), so the client can link to him and offer the rehire. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["HireEmployeeErrorResponse"];
+                };
             };
             /** @description Business validation failed (invalid catalog relation or distribution). */
             422: {
@@ -8217,6 +8491,29 @@ export interface operations {
             };
         };
     };
+    listEmployeeAddressTypeProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example ESP */
+                ruleSystemCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The coverage of each address type, ordered by code */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeAddressTypeProfilesResponse"];
+                };
+            };
+        };
+    };
     getAgreementCategoryProfile: {
         parameters: {
             query?: never;
@@ -8819,7 +9116,10 @@ export interface operations {
                 /** @description Optional case-insensitive search by option code or name. */
                 q?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -9084,6 +9384,10 @@ export interface operations {
                 payrollPeriodCode?: string;
                 employeeNumber?: string;
                 status?: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
+                /** @description Zero-based page index. Defaults to 0. */
+                page?: number;
+                /** @description Page size. Defaults to 50. */
+                size?: number;
             };
             header?: never;
             path?: never;
@@ -9091,16 +9395,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of matching payrolls */
+            /** @description One page of matching payrolls, with the total across all pages */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PayrollSummaryResponse"][];
+                    "application/json": components["schemas"]["PayrollSearchPageResponse"];
                 };
             };
-            /** @description Invalid query parameters */
+            /** @description Invalid query parameters (an unknown status, or a page or size out of bounds) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -9537,6 +9841,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PayrollCalculationRunResponse"];
+                };
+            };
+            /** @description El encargo no se puede lanzar, y no deja ejecucion. Entre otras cosas, un empleado nombrado que no existe se nombra en el mensaje (frontend#88): si es el tipo, con los tipos que tiene el sistema de reglas; si es el numero, con el numero. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollErrorResponse"];
                 };
             };
         };
@@ -10153,15 +10466,26 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Employee not found */
+            /** @description Employee not found (`PAYROLL_INPUT_EMPLOYEE_NOT_FOUND`) */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputErrorResponse"];
+                };
             };
             /** @description Payroll input already exists for this concept and period */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputErrorResponse"];
+                };
+            };
+            /** @description The input could never be paid (b4rrhh/backend#142): the concept does not exist or is not an input (`PAYROLL_INPUT_CONCEPT_INVALID`), or the period has not a single day of presence (`PAYROLL_INPUT_OUTSIDE_PRESENCE`, naming the presences). A period covered in part is accepted: the engine prorates by days. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10210,6 +10534,15 @@ export interface operations {
             };
             /** @description Payroll input not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePayrollInputErrorResponse"];
+                };
+            };
+            /** @description The input could never be paid (b4rrhh/backend#142): the concept does not exist or is not an input (`PAYROLL_INPUT_CONCEPT_INVALID`), or the period has not a single day of presence (`PAYROLL_INPUT_OUTSIDE_PRESENCE`, naming the presences). A period covered in part is accepted: the engine prorates by days. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10350,7 +10683,7 @@ export interface operations {
                     "application/json": components["schemas"]["AbsenceResponse"][];
                 };
             };
-            /** @description Employee not found */
+            /** @description The employee does not exist (`ABSENCE_EMPLOYEE_NOT_FOUND`); it was a 422 until b4rrhh/backend#144. An employee without absences answers 200 with an empty list. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -10819,6 +11152,117 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listEmployeeRetroMarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marks ordered by createdAt DESC */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroMarkResponse"][];
+                };
+            };
+            /** @description The employee does not exist (`RETRO_MARK_EMPLOYEE_NOT_FOUND`). An employee without marks answers 200 with an empty list: the two are no longer the same (b4rrhh/backend#144). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    discardRetroMark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscardRetroMarkRequest"];
+            };
+        };
+        responses: {
+            /** @description The mark, now discarded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroMarkResponse"];
+                };
+            };
+            /** @description Mark not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroMarkErrorResponse"];
+                };
+            };
+            /** @description The mark is not ACTIVE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroMarkErrorResponse"];
+                };
+            };
+            /** @description Reason missing */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroMarkErrorResponse"];
+                };
+            };
+        };
+    };
+    explainPayrollArrears: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                payrollPeriodCode: string;
+                payrollTypeCode: string;
+                presenceNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One entry per arrears line, or an empty array */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrearExplanationResponse"][];
+                };
             };
         };
     };
