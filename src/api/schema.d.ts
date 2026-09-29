@@ -10764,7 +10764,7 @@ export interface operations {
                     "application/json": components["schemas"]["AbsenceErrorResponse"];
                 };
             };
-            /** @description Validation error */
+            /** @description Validation error. ABSENCE_OUTSIDE_PRESENCE_PERIOD when the absence does not fall entirely within one presence: it must end, at the latest, on the last day of the presence it starts in, so one that crosses the gap between a termination and a rehire is refused (b4rrhh/backend#147). INVALID_ABSENCE_DATE_RANGE when it ends before it starts. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10882,7 +10882,7 @@ export interface operations {
                     "application/json": components["schemas"]["AbsenceErrorResponse"];
                 };
             };
-            /** @description Validation error */
+            /** @description Validation error. ABSENCE_OUTSIDE_PRESENCE_PERIOD when the absence does not fall entirely within one presence: it must end, at the latest, on the last day of the presence it starts in, so one that crosses the gap between a termination and a rehire is refused (b4rrhh/backend#147). INVALID_ABSENCE_DATE_RANGE when it ends before it starts. */
             422: {
                 headers: {
                     [name: string]: unknown;
