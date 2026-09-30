@@ -56,6 +56,8 @@ tags:
     description: Launch and track bulk payroll calculation runs.
   - name: Employee Absences
     description: Employee absence occurrence management.
+  - name: Employee Year
+    description: The calendar year of one employee at a glance, for the year strip (b4rrhh/backend#151).
 
 paths:
   /employees:
@@ -88,6 +90,9 @@ paths:
         - in: query
           name: status
           required: false
+          description: >-
+            Keeps the employees whose status today is this one. The status is read from the
+            presences on the current date, the same as the employee card (b4rrhh/backend#148).
           schema:
             type: string
             maxLength: 30
@@ -183,6 +188,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HireEmployeeErrorResponse"
+
+  /employees/identifier-owner:
+    get:
+      operationId: findIdentifierOwner
+      summary: Who already owns an identity document in a rule system
+      tags:
+        - Employee Lifecycle
+      description: >-
+        Read-only question the hire screen asks before the hire is sent (b4rrhh/backend#149):
+        the owner is the same one the hire's 409 `HIRE_IDENTIFIER_ALREADY_EXISTS` names, found
+        by the same lookup, so the value is compared without case or surrounding spaces. It is
+        a courtesy, not the guarantee: two hires at once with the same document are only told
+        apart by the hire itself.
+      parameters:
+        - in: query
+          name: ruleSystemCode
+          required: true
+          schema:
+            type: string
+            maxLength: 5
+        - in: query
+          name: identifierTypeCode
+          required: true
+          schema:
+            type: string
+            maxLength: 30
+        - in: query
+          name: identifierValue
+          required: true
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: The document already belongs to this employee.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentifierOwnerResponse"
+        "204":
+          description: No employee of the rule system has this document.
+        "400":
+          description: A query parameter is missing.
 
   /employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/terminate:
     post:
@@ -348,6 +396,15 @@ paths:
           schema:
             type: string
             maxLength: 15
+        - in: query
+          name: referenceDate
+          required: false
+          schema:
+            type: string
+            format: date
+          description: >-
+            Date the status is read on; today when omitted. The status is not stored: it is read
+            from the presences on this date (b4rrhh/backend#148).
       responses:
         "200":
           description: Employee found
@@ -3292,6 +3349,8 @@ paths:
       summary: Create rule entity type
       tags:
         - Rule Entity Types
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
       requestBody:
         required: true
         content:
@@ -3310,6 +3369,8 @@ paths:
       summary: List rule entity types
       tags:
         - Rule Entity Types
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
       responses:
         "200":
           description: Rule entity types list
@@ -3327,6 +3388,7 @@ paths:
       tags:
         - Rule Entity Types
       parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
         - in: path
           name: ruleEntityTypeCode
           required: true
@@ -3384,6 +3446,8 @@ paths:
       summary: Create rule entity
       tags:
         - Rule Entities
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
       requestBody:
         required: true
         content:
@@ -3418,6 +3482,7 @@ paths:
         - `ruleSystemCode + ruleEntityTypeCode`
         - `ruleSystemCode + ruleEntityTypeCode + code`
       parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
         - in: query
           name: ruleSystemCode
           required: false
@@ -3466,6 +3531,7 @@ paths:
         - Rule Entities
       description: Returns the exact occurrence identified by ruleSystemCode, ruleEntityTypeCode, code and startDate.
       parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
         - in: path
           name: ruleSystemCode
           required: true
@@ -3509,6 +3575,7 @@ paths:
         Identity fields (ruleSystemCode, ruleEntityTypeCode, code, startDate) are immutable.
         This operation does not create a new occurrence.
       parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
         - in: path
           name: ruleSystemCode
           required: true
@@ -3603,6 +3670,7 @@ paths:
         Explicit domain action to close an existing occurrence by setting endDate.
         Identity fields remain immutable.
       parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
         - in: path
           name: ruleSystemCode
           required: true
@@ -5120,6 +5188,10 @@ paths:
     post:
       tags: [Payroll]
       operationId: invalidatePayroll
+      description: >-
+        Invalidates one payroll. There is no reason to give (b4rrhh/backend#150): the free text
+        that used to be asked for was stored and never read. The payroll keeps
+        `MANUAL_INVALIDATION` as its statusReasonCode, which says which path invalidated it.
       parameters:
         - name: ruleSystemCode
           in: path
@@ -5145,12 +5217,6 @@ paths:
           in: path
           required: true
           schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/InvalidatePayrollRequest"
       responses:
         "200":
           description: Payroll invalidated
@@ -5373,7 +5439,9 @@ paths:
         units. Protected payrolls (EXPLICIT_VALIDATED or DEFINITIVE) are skipped and counted
         separately. Already NOT_VALID payrolls are also skipped without error. targetSelection
         semantics mirror those of the payroll launch endpoint. totalCandidates represents expanded
-        presence-based units, not the raw number of target employees.
+        presence-based units, not the raw number of target employees. There is no reason to give
+        (b4rrhh/backend#150): every invalidated payroll keeps `BULK_INVALIDATION` as its
+        statusReasonCode.
       tags:
         - Payroll
       requestBody:
@@ -7219,6 +7287,60 @@ paths:
             The employee does not exist (`RETRO_MARK_EMPLOYEE_NOT_FOUND`). An employee without
             marks answers 200 with an empty list: the two are no longer the same (b4rrhh/backend#144).
 
+  /employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/year-summary:
+    get:
+      summary: The calendar year of an employee, summarised
+      description: >-
+        What the year strip needs to paint twelve months at once (b4rrhh/backend#151), in one call
+        instead of one per month and lane. It composes what the presence, payroll, absence, payroll
+        input and retro mark queries already serve, and computes none of them differently: the
+        counters of a month are what the queries of that month return. A month is CLOSED when
+        every payroll of the employee in it is DEFINITIVE (the "delivered" of ADR-074), OPEN when
+        it has some payroll that is not, and has no state when it has none. Absences come whole
+        even when they start or end outside the year; discarded retro marks do not come.
+      operationId: getEmployeeYearSummary
+      tags:
+        - Employee Year
+      parameters:
+        - in: path
+          name: ruleSystemCode
+          required: true
+          schema:
+            type: string
+            maxLength: 10
+        - in: path
+          name: employeeTypeCode
+          required: true
+          schema:
+            type: string
+            maxLength: 30
+        - in: path
+          name: employeeNumber
+          required: true
+          schema:
+            type: string
+            maxLength: 20
+        - in: query
+          name: year
+          required: true
+          description: Calendar year, January to December.
+          schema:
+            type: integer
+            format: int32
+            minimum: 2000
+            maximum: 9999
+      responses:
+        '200':
+          description: The year of the employee.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeYearSummaryResponse'
+        '400':
+          description: The year is missing or out of range.
+        '404':
+          description: The employee does not exist (`EMPLOYEE_YEAR_EMPLOYEE_NOT_FOUND`).
+
   /payroll/retro-marks/{id}/discard:
     post:
       summary: Discard a retroactivity mark, with a reason
@@ -7889,8 +8011,8 @@ components:
         Request for the bulk close workflow. targetSelection semantics mirror those of the payroll
         launch endpoint. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, both employee and employees
         must be null. There is no statusReasonCode: closing does not give a reason, it keeps the
-        one the payroll already had. Invalidation does ask for one, because invalidating is a
-        decision about something that was fine.
+        one the payroll already had. Invalidation does not ask for one either (b4rrhh/backend#150):
+        it records which path invalidated the payroll, never a free text.
       required:
         - ruleSystemCode
         - payrollPeriodCode
@@ -7982,7 +8104,6 @@ components:
         - ruleSystemCode
         - payrollPeriodCode
         - payrollTypeCode
-        - statusReasonCode
         - targetSelection
       properties:
         ruleSystemCode:
@@ -7994,10 +8115,6 @@ components:
         payrollTypeCode:
           type: string
           enum: [NORMAL, EXTRA]
-        statusReasonCode:
-          description: >-
-            Reason code applied to all invalidated payrolls.
-          type: string
         targetSelection:
           $ref: "#/components/schemas/PayrollLaunchTargetSelectionRequest"
 
@@ -8017,7 +8134,6 @@ components:
         - totalSkippedAlreadyNotValid
         - totalSkippedProtected
         - totalSkippedNotFound
-        - statusReasonCode
       properties:
         ruleSystemCode:
           type: string
@@ -8056,10 +8172,6 @@ components:
             Candidate units for which no payroll row was found in persistence.
           type: integer
           format: int32
-        statusReasonCode:
-          description: >-
-            Status reason code applied to all invalidated payrolls.
-          type: string
 
     HireEmployeeRequest:
       type: object
@@ -8214,6 +8326,9 @@ components:
           maxLength: 300
         status:
           type: string
+          description: >-
+            The status today, read from the presences once the command is done
+            (b4rrhh/backend#148): a hire in the future leaves it at NOT_HIRED until its date.
         hireDate:
           type: string
           format: date
@@ -8382,6 +8497,126 @@ components:
           additionalProperties: true
           nullable: true
 
+    EmployeeYearSummaryResponse:
+      type: object
+      description: The calendar year of one employee (b4rrhh/backend#151).
+      required: [year, presences, months, absences]
+      properties:
+        year:
+          type: integer
+          format: int32
+        presences:
+          type: array
+          description: The presences that touch the year, whole, ordered by start date.
+          items:
+            $ref: '#/components/schemas/EmployeeYearPresenceResponse'
+        months:
+          type: array
+          description: Always twelve, January first.
+          items:
+            $ref: '#/components/schemas/EmployeeYearMonthResponse'
+        absences:
+          type: array
+          description: >-
+            The absences that touch the year, whole even when they start or end outside it,
+            ordered by start date.
+          items:
+            $ref: '#/components/schemas/EmployeeYearAbsenceResponse'
+
+    EmployeeYearPresenceResponse:
+      type: object
+      required: [presenceNumber, startDate]
+      properties:
+        presenceNumber:
+          type: integer
+          format: int32
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          description: Null while the presence is open.
+
+    EmployeeYearMonthResponse:
+      type: object
+      required:
+        - payrollPeriodCode
+        - payrollInputCount
+        - payrollInputConceptCount
+        - activeRetroMarkCount
+        - consumedRetroMarkCount
+      properties:
+        payrollPeriodCode:
+          type: string
+          description: yyyyMM.
+        payrollState:
+          type: string
+          nullable: true
+          enum: [OPEN, CLOSED]
+          description: >-
+            CLOSED when every payroll of the employee in the month is DEFINITIVE, OPEN when some
+            is not, null when the month has no payroll.
+        payrollInputCount:
+          type: integer
+          format: int32
+        payrollInputConceptCount:
+          type: integer
+          format: int32
+        activeRetroMarkCount:
+          type: integer
+          format: int32
+          description: Marks on this month still waiting for a payroll to pay them.
+        consumedRetroMarkCount:
+          type: integer
+          format: int32
+          description: Marks on this month already paid as arrears.
+
+    EmployeeYearAbsenceResponse:
+      type: object
+      required: [absenceTypeCode, startDate, benefitEntitled]
+      properties:
+        absenceTypeCode:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          description: Null while the absence is open.
+        benefitEntitled:
+          type: boolean
+
+    IdentifierOwnerResponse:
+      type: object
+      description: >-
+        The employee who already owns a document (b4rrhh/backend#149), with the same fields
+        as the `details` of the hire's `HIRE_IDENTIFIER_ALREADY_EXISTS`, plus the sentence.
+      required:
+        - employeeTypeCode
+        - employeeNumber
+        - active
+        - message
+      properties:
+        employeeTypeCode:
+          type: string
+        employeeNumber:
+          type: string
+        active:
+          type: boolean
+          description: Has a presence open today or ending in the future.
+        ceasedOn:
+          type: string
+          format: date
+          nullable: true
+          description: The last day of his last presence, when ceased.
+        message:
+          type: string
+          description: '«Este DNI ya es EMP000123 (cesado el 13/05/2026)», or «…, que está de alta».'
+
     RehireEmployeeRequest:
       type: object
       required:
@@ -8523,6 +8758,9 @@ components:
         status:
           type: string
           maxLength: 30
+          description: >-
+            The status today, read from the presences once the command is done
+            (b4rrhh/backend#148): a rehire in the future leaves it at TERMINATED until its date.
         newPresence:
           $ref: "#/components/schemas/RehiredPresenceResponse"
         newContract:
@@ -8700,6 +8938,9 @@ components:
         status:
           type: string
           maxLength: 30
+          description: >-
+            The status today, read from the presences once the command is done
+            (b4rrhh/backend#148): a termination in the future leaves it at ACTIVE until its date.
         closedPresence:
           $ref: "#/components/schemas/ClosedPresenceResponse"
         closedContract:
@@ -8929,13 +9170,48 @@ components:
           type: string
           nullable: true
         status:
+          $ref: "#/components/schemas/EmployeeStatus"
+        statusDate:
           type: string
+          format: date
+          description: Date the status was read on (the requested referenceDate, or today).
+        statusSince:
+          type: string
+          format: date
+          nullable: true
+          description: >-
+            First day of the current status. ACTIVE: start of the run of presences that covers
+            statusDate. TERMINATED: the day after the last termination. Null for NOT_HIRED.
+        plannedTerminationDate:
+          type: string
+          format: date
+          nullable: true
+          description: >-
+            Only for ACTIVE: last day of the run of presences that covers statusDate, when it has
+            one. It is still a working day; the employee is TERMINATED from the next one.
+        plannedHireDate:
+          type: string
+          format: date
+          nullable: true
+          description: >-
+            Only for TERMINATED or NOT_HIRED: start of the next presence, when one is recorded
+            (a rehire or a hire in the future).
         photoUrl:
           type: string
           nullable: true
         displayName:
           type: string
           description: Computed display name based on the rule system's configured format.
+
+    EmployeeStatus:
+      type: string
+      enum: [ACTIVE, TERMINATED, NOT_HIRED]
+      description: >-
+        The employee's status on a date, read from the presences and never stored
+        (b4rrhh/backend#148). ACTIVE: a presence covers the date; the termination date is the last
+        day of the presence, so on that day the employee is still ACTIVE. TERMINATED: no presence
+        covers the date and one ended before it. NOT_HIRED: no presence covers the date and none
+        ended before it (the hire is in the future, or there is none).
 
     PayrollSearchPageResponse:
       type: object
@@ -9022,8 +9298,7 @@ components:
           type: string
           description: Preferred name when available, otherwise composed from first/last names.
         status:
-          type: string
-          maxLength: 30
+          $ref: "#/components/schemas/EmployeeStatus"
         workCenterCode:
           type: string
           maxLength: 30
@@ -11924,6 +12199,7 @@ components:
       required:
         - code
         - name
+        - label
         - active
         - literalClass
         - maintenanceMode
@@ -11934,6 +12210,12 @@ components:
           type: string
         name:
           type: string
+          description: The stored name of the type, the one that is edited. Never translated.
+        label:
+          type: string
+          description: >-
+            The name of the type in the language of Accept-Language (ADR-052, backend#152), or
+            the stored name when there is no translation for it or no language is asked for.
         active:
           type: boolean
         literalClass:
@@ -12017,6 +12299,7 @@ components:
         - ruleEntityTypeCode
         - code
         - name
+        - label
         - active
         - startDate
       properties:
@@ -12028,6 +12311,15 @@ components:
           type: string
         name:
           type: string
+          description: >-
+            The stored literal, the one that is edited (ADR-052 §1). Never translated: a
+            maintenance screen shows it next to the label (backend#152).
+        label:
+          type: string
+          description: >-
+            The literal in the language of Accept-Language, resolved like every other catalog
+            label (ADR-052 §3), or the stored name when there is no translation for it, the
+            type is not translatable or no language is asked for.
         description:
           type: string
           nullable: true
@@ -12257,13 +12549,6 @@ components:
           type: string
         agreementCategoryCode:
           type: string
-    InvalidatePayrollRequest:
-      type: object
-      required:
-        - statusReasonCode
-      properties:
-        statusReasonCode:
-          type: string
     PayrollCalculationStepResponse:
       type: object
       description: >-
@@ -12457,6 +12742,7 @@ components:
         - presenceNumber
         - status
         - calculatedAt
+        - sharesPeriodWithAnotherPresence
       properties:
         ruleSystemCode:
           type: string
@@ -12477,6 +12763,13 @@ components:
         calculatedAt:
           type: string
           format: date-time
+        sharesPeriodWithAnotherPresence:
+          type: boolean
+          description: >-
+            Whether another presence of the same employee has a payroll of the same period and
+            type (terminated and rehired within the month). Counted in the database, not in the
+            page: the sister payroll may be on another page or excluded by the status filter.
+            The presence number only tells payrolls apart when this is true (b4rrhh/frontend#104).
     PayrollErrorResponse:
       type: object
       required:

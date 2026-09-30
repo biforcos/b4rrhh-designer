@@ -45,6 +45,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/identifier-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who already owns an identity document in a rule system
+         * @description Read-only question the hire screen asks before the hire is sent (b4rrhh/backend#149): the owner is the same one the hire's 409 `HIRE_IDENTIFIER_ALREADY_EXISTS` names, found by the same lookup, so the value is compared without case or surrounding spaces. It is a courtesy, not the guarantee: two hires at once with the same document are only told apart by the hire itself.
+         */
+        get: operations["findIdentifierOwner"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/terminate": {
         parameters: {
             query?: never;
@@ -1420,6 +1440,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @description Invalidates one payroll. There is no reason to give (b4rrhh/backend#150): the free text that used to be asked for was stored and never read. The payroll keeps `MANUAL_INVALIDATION` as its statusReasonCode, which says which path invalidated it. */
         post: operations["invalidatePayroll"];
         delete?: never;
         options?: never;
@@ -1488,7 +1509,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk invalidation workflow for payroll results
-         * @description Synchronous bulk invalidation workflow. Resolves a target employee population, expands to presence-based candidate units, and invalidates all existing CALCULATED payrolls for those units. Protected payrolls (EXPLICIT_VALIDATED or DEFINITIVE) are skipped and counted separately. Already NOT_VALID payrolls are also skipped without error. targetSelection semantics mirror those of the payroll launch endpoint. totalCandidates represents expanded presence-based units, not the raw number of target employees.
+         * @description Synchronous bulk invalidation workflow. Resolves a target employee population, expands to presence-based candidate units, and invalidates all existing CALCULATED payrolls for those units. Protected payrolls (EXPLICIT_VALIDATED or DEFINITIVE) are skipped and counted separately. Already NOT_VALID payrolls are also skipped without error. targetSelection semantics mirror those of the payroll launch endpoint. totalCandidates represents expanded presence-based units, not the raw number of target employees. There is no reason to give (b4rrhh/backend#150): every invalidated payroll keeps `BULK_INVALIDATION` as its statusReasonCode.
          */
         post: operations["bulkInvalidatePayroll"];
         delete?: never;
@@ -2206,6 +2227,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/year-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The calendar year of an employee, summarised
+         * @description What the year strip needs to paint twelve months at once (b4rrhh/backend#151), in one call instead of one per month and lane. It composes what the presence, payroll, absence, payroll input and retro mark queries already serve, and computes none of them differently: the counters of a month are what the queries of that month return. A month is CLOSED when every payroll of the employee in it is DEFINITIVE (the "delivered" of ADR-074), OPEN when it has some payroll that is not, and has no state when it has none. Absences come whole even when they start or end outside the year; discarded retro marks do not come.
+         */
+        get: operations["getEmployeeYearSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/payroll/retro-marks/{id}/discard": {
         parameters: {
             query?: never;
@@ -2511,7 +2552,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
-        /** @description Request for the bulk close workflow. targetSelection semantics mirror those of the payroll launch endpoint. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, both employee and employees must be null. There is no statusReasonCode: closing does not give a reason, it keeps the one the payroll already had. Invalidation does ask for one, because invalidating is a decision about something that was fine. */
+        /** @description Request for the bulk close workflow. targetSelection semantics mirror those of the payroll launch endpoint. For ALL_EMPLOYEES_WITH_PRESENCE_IN_PERIOD, both employee and employees must be null. There is no statusReasonCode: closing does not give a reason, it keeps the one the payroll already had. Invalidation does not ask for one either (b4rrhh/backend#150): it records which path invalidated the payroll, never a free text. */
         BulkFinalizePayrollRequest: {
             ruleSystemCode: string;
             /** @description Must be in YYYYMM format. Used to resolve presence overlaps for the payroll month. */
@@ -2564,8 +2605,6 @@ export interface components {
             payrollPeriodCode: string;
             /** @enum {string} */
             payrollTypeCode: "NORMAL" | "EXTRA";
-            /** @description Reason code applied to all invalidated payrolls. */
-            statusReasonCode: string;
             targetSelection: components["schemas"]["PayrollLaunchTargetSelectionRequest"];
         };
         /** @description Summary of a completed bulk invalidation workflow. totalCandidates counts presence-based expanded units, not raw target employees. totalFound counts payroll rows actually found for those units. Skipped counters explain everything that was not invalidated. */
@@ -2604,8 +2643,6 @@ export interface components {
              * @description Candidate units for which no payroll row was found in persistence.
              */
             totalSkippedNotFound: number;
-            /** @description Status reason code applied to all invalidated payrolls. */
-            statusReasonCode: string;
         };
         HireEmployeeRequest: {
             ruleSystemCode: string;
@@ -2650,6 +2687,7 @@ export interface components {
             lastName2?: string | null;
             preferredName?: string | null;
             displayName: string;
+            /** @description The status today, read from the presences once the command is done (b4rrhh/backend#148): a hire in the future leaves it at NOT_HIRED until its date. */
             status: string;
             /** Format: date */
             hireDate: string;
@@ -2719,6 +2757,76 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** @description The calendar year of one employee (b4rrhh/backend#151). */
+        EmployeeYearSummaryResponse: {
+            /** Format: int32 */
+            year: number;
+            /** @description The presences that touch the year, whole, ordered by start date. */
+            presences: components["schemas"]["EmployeeYearPresenceResponse"][];
+            /** @description Always twelve, January first. */
+            months: components["schemas"]["EmployeeYearMonthResponse"][];
+            /** @description The absences that touch the year, whole even when they start or end outside it, ordered by start date. */
+            absences: components["schemas"]["EmployeeYearAbsenceResponse"][];
+        };
+        EmployeeYearPresenceResponse: {
+            /** Format: int32 */
+            presenceNumber: number;
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null while the presence is open.
+             */
+            endDate?: string | null;
+        };
+        EmployeeYearMonthResponse: {
+            /** @description yyyyMM. */
+            payrollPeriodCode: string;
+            /**
+             * @description CLOSED when every payroll of the employee in the month is DEFINITIVE, OPEN when some is not, null when the month has no payroll.
+             * @enum {string|null}
+             */
+            payrollState?: "OPEN" | "CLOSED" | null;
+            /** Format: int32 */
+            payrollInputCount: number;
+            /** Format: int32 */
+            payrollInputConceptCount: number;
+            /**
+             * Format: int32
+             * @description Marks on this month still waiting for a payroll to pay them.
+             */
+            activeRetroMarkCount: number;
+            /**
+             * Format: int32
+             * @description Marks on this month already paid as arrears.
+             */
+            consumedRetroMarkCount: number;
+        };
+        EmployeeYearAbsenceResponse: {
+            absenceTypeCode: string;
+            /** Format: date */
+            startDate: string;
+            /**
+             * Format: date
+             * @description Null while the absence is open.
+             */
+            endDate?: string | null;
+            benefitEntitled: boolean;
+        };
+        /** @description The employee who already owns a document (b4rrhh/backend#149), with the same fields as the `details` of the hire's `HIRE_IDENTIFIER_ALREADY_EXISTS`, plus the sentence. */
+        IdentifierOwnerResponse: {
+            employeeTypeCode: string;
+            employeeNumber: string;
+            /** @description Has a presence open today or ending in the future. */
+            active: boolean;
+            /**
+             * Format: date
+             * @description The last day of his last presence, when ceased.
+             */
+            ceasedOn?: string | null;
+            /** @description «Este DNI ya es EMP000123 (cesado el 13/05/2026)», or «…, que está de alta». */
+            message: string;
+        };
         RehireEmployeeRequest: {
             /** Format: date */
             rehireDate: string;
@@ -2763,6 +2871,7 @@ export interface components {
             employeeNumber: string;
             /** Format: date */
             rehireDate: string;
+            /** @description The status today, read from the presences once the command is done (b4rrhh/backend#148): a rehire in the future leaves it at TERMINATED until its date. */
             status: string;
             newPresence: components["schemas"]["RehiredPresenceResponse"];
             newContract: components["schemas"]["RehiredContractResponse"];
@@ -2829,6 +2938,7 @@ export interface components {
             /** Format: date */
             terminationDate: string;
             exitReasonCode: string;
+            /** @description The status today, read from the presences once the command is done (b4rrhh/backend#148): a termination in the future leaves it at ACTIVE until its date. */
             status: string;
             closedPresence: components["schemas"]["ClosedPresenceResponse"];
             closedContract: components["schemas"]["ClosedContractResponse"];
@@ -2914,11 +3024,36 @@ export interface components {
             lastName1: string;
             lastName2?: string | null;
             preferredName?: string | null;
-            status: string;
+            status: components["schemas"]["EmployeeStatus"];
+            /**
+             * Format: date
+             * @description Date the status was read on (the requested referenceDate, or today).
+             */
+            statusDate?: string;
+            /**
+             * Format: date
+             * @description First day of the current status. ACTIVE: start of the run of presences that covers statusDate. TERMINATED: the day after the last termination. Null for NOT_HIRED.
+             */
+            statusSince?: string | null;
+            /**
+             * Format: date
+             * @description Only for ACTIVE: last day of the run of presences that covers statusDate, when it has one. It is still a working day; the employee is TERMINATED from the next one.
+             */
+            plannedTerminationDate?: string | null;
+            /**
+             * Format: date
+             * @description Only for TERMINATED or NOT_HIRED: start of the next presence, when one is recorded (a rehire or a hire in the future).
+             */
+            plannedHireDate?: string | null;
             photoUrl?: string | null;
             /** @description Computed display name based on the rule system's configured format. */
             displayName: string;
         };
+        /**
+         * @description The employee's status on a date, read from the presences and never stored (b4rrhh/backend#148). ACTIVE: a presence covers the date; the termination date is the last day of the presence, so on that day the employee is still ACTIVE. TERMINATED: no presence covers the date and one ended before it. NOT_HIRED: no presence covers the date and none ended before it (the hire is in the future, or there is none).
+         * @enum {string}
+         */
+        EmployeeStatus: "ACTIVE" | "TERMINATED" | "NOT_HIRED";
         /** @description One page of the payroll search (b4rrhh/frontend#93), shaped like the employee directory page. `total` counts every payroll that matches the same filters, not the rows on the page. */
         PayrollSearchPageResponse: {
             items: components["schemas"]["PayrollSummaryResponse"][];
@@ -2963,7 +3098,7 @@ export interface components {
             employeeNumber: string;
             /** @description Preferred name when available, otherwise composed from first/last names. */
             displayName: string;
-            status: string;
+            status: components["schemas"]["EmployeeStatus"];
             /** @description Active work center assignment code on current date, when available. */
             workCenterCode?: string | null;
         };
@@ -4285,7 +4420,10 @@ export interface components {
         };
         RuleEntityTypeResponse: {
             code: string;
+            /** @description The stored name of the type, the one that is edited. Never translated. */
             name: string;
+            /** @description The name of the type in the language of Accept-Language (ADR-052, backend#152), or the stored name when there is no translation for it or no language is asked for. */
+            label: string;
             active: boolean;
             /** @enum {string} */
             literalClass: "DOMAIN_VOCABULARY" | "REGULATORY_CITATION" | "PROPER_NOUN";
@@ -4321,7 +4459,10 @@ export interface components {
             ruleSystemCode: string;
             ruleEntityTypeCode: string;
             code: string;
+            /** @description The stored literal, the one that is edited (ADR-052 §1). Never translated: a maintenance screen shows it next to the label (backend#152). */
             name: string;
+            /** @description The literal in the language of Accept-Language, resolved like every other catalog label (ADR-052 §3), or the stored name when there is no translation for it, the type is not translatable or no language is asked for. */
+            label: string;
             description?: string | null;
             active: boolean;
             /** Format: date */
@@ -4425,9 +4566,6 @@ export interface components {
             annualHours?: string;
             agreementCategoryCode?: string;
         };
-        InvalidatePayrollRequest: {
-            statusReasonCode: string;
-        };
         /** @description One evaluation the engine performed while calculating a payroll. Identified by executionOrder within the payroll, never by conceptCode: the same concept can appear more than once when it is evaluated per segment. */
         PayrollCalculationStepResponse: {
             /**
@@ -4521,6 +4659,8 @@ export interface components {
             status: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
             /** Format: date-time */
             calculatedAt: string;
+            /** @description Whether another presence of the same employee has a payroll of the same period and type (terminated and rehired within the month). Counted in the database, not in the page: the sister payroll may be on another page or excluded by the status filter. The presence number only tells payrolls apart when this is true (b4rrhh/frontend#104). */
+            sharesPeriodWithAnotherPresence: boolean;
         };
         PayrollErrorResponse: {
             /**
@@ -4962,6 +5102,7 @@ export interface operations {
                 ruleSystemCode?: string;
                 /** @description Optional in V1. Defaults to 'EMP' when not provided. */
                 employeeTypeCode?: string;
+                /** @description Keeps the employees whose status today is this one. The status is read from the presences on the current date, the same as the employee card (b4rrhh/backend#148). */
                 status?: string;
                 /** @description Page size limit. Defaults to 50. */
                 size?: number;
@@ -5076,6 +5217,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HireEmployeeErrorResponse"];
                 };
+            };
+        };
+    };
+    findIdentifierOwner: {
+        parameters: {
+            query: {
+                ruleSystemCode: string;
+                identifierTypeCode: string;
+                identifierValue: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The document already belongs to this employee. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentifierOwnerResponse"];
+                };
+            };
+            /** @description No employee of the rule system has this document. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A query parameter is missing. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5218,7 +5397,10 @@ export interface operations {
     };
     getEmployeeByBusinessKey: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Date the status is read on; today when omitted. The status is not stored: it is read from the presences on this date (b4rrhh/backend#148). */
+                referenceDate?: string;
+            };
             header?: never;
             path: {
                 ruleSystemCode: string;
@@ -7804,7 +7986,10 @@ export interface operations {
     listRuleEntityTypes: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -7824,7 +8009,10 @@ export interface operations {
     createRuleEntityType: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -7848,7 +8036,10 @@ export interface operations {
     getRuleEntityTypeByCode: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleEntityTypeCode: string;
             };
@@ -7923,7 +8114,10 @@ export interface operations {
                 /** @description Optional date used to return only occurrences valid on that day. */
                 referenceDate?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -7943,7 +8137,10 @@ export interface operations {
     createRuleEntity: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -7980,7 +8177,10 @@ export interface operations {
     getRuleEntityByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 ruleEntityTypeCode: string;
@@ -8012,7 +8212,10 @@ export interface operations {
     correctRuleEntityByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 ruleEntityTypeCode: string;
@@ -8099,7 +8302,10 @@ export interface operations {
     closeRuleEntityByBusinessKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
             path: {
                 ruleSystemCode: string;
                 ruleEntityTypeCode: string;
@@ -9557,11 +9763,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InvalidatePayrollRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Payroll invalidated */
             200: {
@@ -11178,6 +11380,47 @@ export interface operations {
                 };
             };
             /** @description The employee does not exist (`RETRO_MARK_EMPLOYEE_NOT_FOUND`). An employee without marks answers 200 with an empty list: the two are no longer the same (b4rrhh/backend#144). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getEmployeeYearSummary: {
+        parameters: {
+            query: {
+                /** @description Calendar year, January to December. */
+                year: number;
+            };
+            header?: never;
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The year of the employee. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeYearSummaryResponse"];
+                };
+            };
+            /** @description The year is missing or out of range. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The employee does not exist (`EMPLOYEE_YEAR_EMPLOYEE_NOT_FOUND`). */
             404: {
                 headers: {
                     [name: string]: unknown;
