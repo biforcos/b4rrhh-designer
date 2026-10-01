@@ -2412,8 +2412,12 @@ export interface components {
             missing: number;
             missingCodes: components["schemas"]["RuleEntityMissingTranslation"][];
         };
+        /** @description A row of rule_entity, not a resolution: it is reported once, with the layer it lives in, however many rule systems mount that layer (backend#157). */
         RuleEntityMissingTranslation: {
-            ruleSystemCode: string;
+            /** @example ESP */
+            layerCode: string;
+            /** @example 3 */
+            level: number;
             code: string;
             /** @description The base literal that is being served meanwhile. */
             name: string;
@@ -4456,7 +4460,18 @@ export interface components {
             endDate?: string | null;
         };
         RuleEntityResponse: {
+            /** @description The rule system the entity was asked for. An entity of a shared layer (INT, COM) is the same row seen from every rule system that mounts that layer (ADR-077 §4). */
             ruleSystemCode: string;
+            /**
+             * @description The layer the entity lives in: the one its rule system mounts at the level of its type (ADR-077, backend#157). While every type is national it is the code of the rule system itself.
+             * @example ESP
+             */
+            layerCode: string;
+            /**
+             * @description The level of that layer, which is the level of the type.
+             * @example 3
+             */
+            level: number;
             ruleEntityTypeCode: string;
             code: string;
             /** @description The stored literal, the one that is edited (ADR-052 §1). Never translated: a maintenance screen shows it next to the label (backend#152). */
