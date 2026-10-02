@@ -2290,6 +2290,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/territory/{ruleSystemCode}/countries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The countries, with their name in the requested language
+         * @description The COUNTRY entities the rule system sees, which live in the INT layer (ADR-077, backend#158): ISO 3166-1 alpha-3 code and name. The name is translated by Accept-Language.
+         */
+        get: operations["listTerritoryCountries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/territory/{ruleSystemCode}/provinces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The provinces, each with its region
+         * @description The PROVINCE entities of the national layer, by INE code, each with its ISO 3166-2 code and its region (backend#154, ADR-078).
+         */
+        get: operations["listTerritoryProvinces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/territory/{ruleSystemCode}/street-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The street types
+         * @description The STREET_TYPE entities of the national layer: for ESP, the 93 abbreviations of Annex II of the Catastro free web services, version 2.6, written as the Catastro writes them.
+         */
+        get: operations["listTerritoryStreetTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/territory/{ruleSystemCode}/municipalities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search municipalities of a country by name, in force on a date
+         * @description Municipalities whose name has a word starting with `name`, ignoring case, accents and the slash of bilingual names: «Vale» finds «València» and «Valencia de Alcántara». Only those in force on `date`. A start date means «in force since at least» (ADR-078): it is the date of the first INE relation loaded that lists the municipality, not its creation date. Names that start with `name` come first, then the rest, each by name.
+         */
+        get: operations["searchTerritoryMunicipalities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/territory/{ruleSystemCode}/postal-codes/{postalCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check a postal code
+         * @description For ESP, the province of a postal code is its first two digits, always. The suggested municipality comes from GeoNames (CC BY 4.0) and is a suggestion: absent when the source does not give one, or gives two. A postal code whose first two digits are not a province has no province and says why in `message`; that is an answer, not an error.
+         */
+        get: operations["checkTerritoryPostalCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4426,6 +4526,11 @@ export interface components {
             code: string;
             /** @description The stored name of the type, the one that is edited. Never translated. */
             name: string;
+            /**
+             * @description The level its entities live in (ADR-077): 1 Common, 2 International, 3 National, 4 National payroll, 5 Company payroll. A type created through the API is born at 3, and the level is not changed through the API: moving a type is moving its entities to another layer, which is a migration (backend#164).
+             * @example 2
+             */
+            level: number;
             /** @description The name of the type in the language of Accept-Language (ADR-052, backend#152), or the stored name when there is no translation for it or no language is asked for. */
             label: string;
             active: boolean;
@@ -5097,9 +5202,117 @@ export interface components {
             error?: string;
             message?: string;
         };
+        TerritoryCountryResponse: {
+            /**
+             * @description ISO 3166-1 alpha-3.
+             * @example ESP
+             */
+            code: string;
+            /**
+             * @description The name in the language of Accept-Language, or the stored one.
+             * @example España
+             */
+            name: string;
+        };
+        TerritoryRegionResponse: {
+            /**
+             * @description INE code of the autonomous community or city (CODAUTO).
+             * @example 10
+             */
+            code: string;
+            /** @example Comunitat Valenciana */
+            name: string;
+            /**
+             * @description ISO 3166-2.
+             * @example ES-VC
+             */
+            isoCode: string;
+        };
+        TerritoryProvinceResponse: {
+            /**
+             * @description INE code (CPRO), the one the 190 and the Social Security ask for.
+             * @example 46
+             */
+            code: string;
+            /** @example Valencia/València */
+            name: string;
+            /**
+             * @description ISO 3166-2. Ceuta and Melilla have none as provinces and carry the one of the autonomous city.
+             * @example ES-V
+             */
+            isoCode: string;
+            region: components["schemas"]["TerritoryRegionResponse"];
+        };
+        TerritoryStreetTypeResponse: {
+            /** @example CL */
+            code: string;
+            /** @example CALLE */
+            name: string;
+        };
+        TerritoryProvinceRefResponse: {
+            /** @example 46 */
+            code: string;
+            /** @example Valencia/València */
+            name: string;
+        };
+        TerritoryRegionRefResponse: {
+            /** @example 10 */
+            code: string;
+            /** @example Comunitat Valenciana */
+            name: string;
+        };
+        TerritoryMunicipalityResponse: {
+            /**
+             * @description INE code, five digits (province + municipality).
+             * @example 46250
+             */
+            code: string;
+            /**
+             * @description The name of the most recent INE relation loaded.
+             * @example València
+             */
+            name: string;
+            /**
+             * Format: date
+             * @description In force since at least this date (ADR-078); not its creation date.
+             */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+            province: components["schemas"]["TerritoryProvinceRefResponse"];
+            region?: components["schemas"]["TerritoryRegionRefResponse"] | null;
+        };
+        TerritoryMunicipalityRefResponse: {
+            /** @example 46250 */
+            code: string;
+            /** @example València */
+            name: string;
+        };
+        TerritoryPostalCodeResponse: {
+            /** @example 46001 */
+            postalCode: string;
+            /** @example ESP */
+            countryCode: string;
+            /** @description The province its first two digits name; absent when they name none. */
+            province?: components["schemas"]["TerritoryProvinceRefResponse"] | null;
+            /** @description A suggestion from GeoNames (CC BY 4.0), never a validation. */
+            suggestedMunicipality?: components["schemas"]["TerritoryMunicipalityRefResponse"] | null;
+            /**
+             * @description Why there is no province, when there is none.
+             * @example Las dos primeras cifras de 99999 no son una provincia.
+             */
+            message?: string | null;
+        };
+        TerritoryErrorResponse: {
+            /** @example TERRITORY_RULE_SYSTEM_NOT_FOUND */
+            code: string;
+            message: string;
+        };
     };
     responses: never;
     parameters: {
+        /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+        TerritoryRuleSystemCode: string;
         /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
         AcceptLanguage: string;
     };
@@ -11520,6 +11733,197 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ArrearExplanationResponse"][];
+                };
+            };
+        };
+    };
+    listTerritoryCountries: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The countries, by name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryCountryResponse"][];
+                };
+            };
+            /** @description The rule system does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryErrorResponse"];
+                };
+            };
+        };
+    };
+    listTerritoryProvinces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The provinces, by code */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryProvinceResponse"][];
+                };
+            };
+            /** @description The rule system does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryErrorResponse"];
+                };
+            };
+        };
+    };
+    listTerritoryStreetTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The street types, by code */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryStreetTypeResponse"][];
+                };
+            };
+            /** @description The rule system does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryErrorResponse"];
+                };
+            };
+        };
+    };
+    searchTerritoryMunicipalities: {
+        parameters: {
+            query: {
+                countryCode: string;
+                /** @description At least two characters. */
+                name: string;
+                /** @description The date the municipality has to be in force on. Today when omitted. */
+                date?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The municipalities found, or an empty array */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryMunicipalityResponse"][];
+                };
+            };
+            /** @description The name is shorter than two characters, or the limit is out of range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryErrorResponse"];
+                };
+            };
+            /** @description The rule system does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryErrorResponse"];
+                };
+            };
+        };
+    };
+    checkTerritoryPostalCode: {
+        parameters: {
+            query: {
+                countryCode: string;
+            };
+            header?: never;
+            path: {
+                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+                postalCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the postal code says */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryPostalCodeResponse"];
+                };
+            };
+            /** @description The postal code is not five digits */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryErrorResponse"];
+                };
+            };
+            /** @description The rule system does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryErrorResponse"];
                 };
             };
         };
