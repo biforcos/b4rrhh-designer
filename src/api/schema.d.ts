@@ -3384,7 +3384,7 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
         };
-        /** @description An address, the same in the employee, the company and the work center (backend#155, ADR-078): the structure of the AEAT and TGSS domicile. The one validation is shared: in Spain, a municipality that has not ended on the date, the province of that municipality, a postal code of that province and a street type of the catalog; outside Spain, the country alone. An address that fails it is stored all the same, with normalized false. Rejected (400) are only an address without country, a country not in the catalog, a postal code that contradicts the province, and a field that does not fit. */
+        /** @description An address, the same in the employee, the company and the work center (backend#155, ADR-078): the structure of the AEAT and TGSS domicile. The one validation is shared: in Spain, a municipality that has not ended on the date, the province of that municipality, a postal code that exists in the geo master and is of that province, and a street type of the catalog; outside Spain, the country alone. An address that fails it is stored all the same, with normalized false and the reason in normalizationIssue. Rejected (400) are only an address without country, a country not in the catalog, a postal code that contradicts the province, and a field that does not fit. */
         PostalAddressRequest: {
             /** @description Street type, a STREET_TYPE entity of the ESP layer (Catastro, V174). Spanish addresses only. */
             streetTypeCode?: string | null;
@@ -3393,6 +3393,7 @@ export interface components {
             /** @description What qualifies the number, such as bis or km. */
             numberQualifier?: string | null;
             block?: string | null;
+            portal?: string | null;
             stair?: string | null;
             floor?: string | null;
             door?: string | null;
@@ -3416,6 +3417,7 @@ export interface components {
             /** @description What qualifies the number, such as bis or km. */
             numberQualifier?: string | null;
             block?: string | null;
+            portal?: string | null;
             stair?: string | null;
             floor?: string | null;
             door?: string | null;
@@ -3433,6 +3435,11 @@ export interface components {
             countryCode?: string | null;
             /** @description Whether the address passes the validation. False is «sin normalizar». */
             normalized: boolean;
+            /**
+             * @description Why the address is not normalized, the first check that fails in the order of the validation; null when it is normalized. SIN_DIRECCION is the empty address of a company or work center without one; SIN_VALIDAR, a row written straight into the database without the validation.
+             * @enum {string|null}
+             */
+            normalizationIssue?: "SIN_DIRECCION" | "SIN_VALIDAR" | "MUNICIPIO_DESCONOCIDO" | "MUNICIPIO_NO_VIGENTE" | "PROVINCIA_DESCONOCIDA" | "PROVINCIA_DE_OTRO_MUNICIPIO" | "CP_DESCONOCIDO" | "CP_DE_OTRA_PROVINCIA" | "TIPO_DE_VIA_DESCONOCIDO" | "DATOS_DE_ESPANA_FUERA_DE_ESPANA" | null;
         };
         CreateAddressRequest: {
             addressTypeCode: string;
