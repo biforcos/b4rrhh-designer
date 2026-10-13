@@ -3384,26 +3384,67 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
         };
+        /** @description An address, the same in the employee, the company and the work center (backend#155, ADR-078): the structure of the AEAT and TGSS domicile. The one validation is shared: in Spain, a municipality that has not ended on the date, the province of that municipality, a postal code of that province and a street type of the catalog; outside Spain, the country alone. An address that fails it is stored all the same, with normalized false. Rejected (400) are only an address without country, a country not in the catalog, a postal code that contradicts the province, and a field that does not fit. */
+        PostalAddressRequest: {
+            /** @description Street type, a STREET_TYPE entity of the ESP layer (Catastro, V174). Spanish addresses only. */
+            streetTypeCode?: string | null;
+            streetName?: string | null;
+            streetNumber?: string | null;
+            /** @description What qualifies the number, such as bis or km. */
+            numberQualifier?: string | null;
+            block?: string | null;
+            stair?: string | null;
+            floor?: string | null;
+            door?: string | null;
+            /** @description Free text. In Spain, the hamlet or district inside the municipality; outside Spain, the town, since there is no INE municipality. */
+            locality?: string | null;
+            /** @description INE municipality code from the geo master (GET /territory/{ruleSystemCode}/municipalities). Spanish addresses only. */
+            municipalityCode?: string | null;
+            /** @description The province, an INE code of a PROVINCE entity of the ESP layer. Stored even though it follows from the municipality; when omitted it is taken from the municipality, or from the postal code. Spanish addresses only. */
+            subdivisionCode?: string | null;
+            /** @description In Spain, five digits whose first two are the province. */
+            postalCode?: string | null;
+            /** @description ISO 3166-1 alpha-3, a COUNTRY entity seen from the rule system (layer INT). */
+            countryCode: string;
+        };
+        /** @description An address, the same in the employee, the company and the work center (backend#155). normalized false is «sin normalizar»: it was stored without passing the validation, and the screen says so. */
+        PostalAddressResponse: {
+            /** @description Street type, a STREET_TYPE entity of the ESP layer (Catastro, V174). Spanish addresses only. */
+            streetTypeCode?: string | null;
+            streetName?: string | null;
+            streetNumber?: string | null;
+            /** @description What qualifies the number, such as bis or km. */
+            numberQualifier?: string | null;
+            block?: string | null;
+            stair?: string | null;
+            floor?: string | null;
+            door?: string | null;
+            /** @description Free text. In Spain, the hamlet or district inside the municipality; outside Spain, the town, since there is no INE municipality. */
+            locality?: string | null;
+            /** @description INE municipality code from the geo master (GET /territory/{ruleSystemCode}/municipalities). Spanish addresses only. */
+            municipalityCode?: string | null;
+            /** @description The name the geo master gives to municipalityCode; null when the code is not there. */
+            municipalityName?: string | null;
+            /** @description The province, an INE code of a PROVINCE entity of the ESP layer. Stored even though it follows from the municipality; when omitted it is taken from the municipality, or from the postal code. Spanish addresses only. */
+            subdivisionCode?: string | null;
+            /** @description In Spain, five digits whose first two are the province. */
+            postalCode?: string | null;
+            /** @description ISO 3166-1 alpha-3, a COUNTRY entity seen from the rule system (layer INT). Null only in the empty address of a company or work center without one. */
+            countryCode?: string | null;
+            /** @description Whether the address passes the validation. False is «sin normalizar». */
+            normalized: boolean;
+        };
         CreateAddressRequest: {
             addressTypeCode: string;
-            street: string;
-            city: string;
-            /** @description ISO 3166-1 alpha-3 code validated against active COUNTRY rule entities for the employee ruleSystemCode. */
-            countryCode: string;
-            postalCode?: string | null;
-            regionCode?: string | null;
+            address: components["schemas"]["PostalAddressRequest"];
             /** Format: date */
             startDate: string;
             /** Format: date */
             endDate?: string | null;
         };
+        /** @description The correction of an address: the whole corrected address, not a patch (a field left out is a field left empty, backend#155), and its dates. */
         UpdateAddressRequest: {
-            street: string;
-            city: string;
-            /** @description ISO 3166-1 alpha-3 code validated against active COUNTRY rule entities for the employee ruleSystemCode. */
-            countryCode: string;
-            postalCode?: string | null;
-            regionCode?: string | null;
+            address: components["schemas"]["PostalAddressRequest"];
             /**
              * Format: date
              * @description The start date the address has after the correction. Required: the correction always says where the address starts, even when it does not move, and repeating the date it already has is how that is said. It used to be optional, and omitting it meant "leave the dates as they are" — which is indistinguishable from a client that forgot to send it, and ate three screens' edits in silence (backend#69).
@@ -3505,12 +3546,7 @@ export interface components {
             addressTypeCode: string;
             /** @description Optional display name from EMPLOYEE_ADDRESS_TYPE rule entities in the employee ruleSystemCode catalog. */
             addressTypeName?: string | null;
-            street: string;
-            city: string;
-            /** @description ISO 3166-1 alpha-3 code from COUNTRY rule entities in the employee ruleSystemCode catalog. */
-            countryCode: string;
-            postalCode?: string | null;
-            regionCode?: string | null;
+            address: components["schemas"]["PostalAddressResponse"];
             /** Format: date */
             startDate: string;
             /** Format: date */
@@ -4351,14 +4387,6 @@ export interface components {
             referenceDate: string;
             items: components["schemas"]["WorkCenterByCompanyOptionResponse"][];
         };
-        CompanyAddress: {
-            street?: string | null;
-            city?: string | null;
-            postalCode?: string | null;
-            regionCode?: string | null;
-            /** @description ISO 3166-1 alpha-3 country code aligned with COUNTRY rule entity codes. */
-            countryCode?: string | null;
-        };
         CreateCompanyRequest: {
             ruleSystemCode: string;
             companyCode: string;
@@ -4368,7 +4396,8 @@ export interface components {
             startDate: string;
             legalName: string;
             taxIdentifier?: string | null;
-            address?: components["schemas"]["CompanyAddress"];
+            /** @description Optional as a whole; when present it goes through the one validation (backend#155). */
+            address?: components["schemas"]["PostalAddressRequest"] | null;
             /**
              * @description The company's economic activity, in CNAE. It is what the AT/EP premium rate of its employees' payroll is looked up by, so leaving it out on an update clears it and the next payroll run for that company fails.
              * @example 4719
@@ -4380,7 +4409,8 @@ export interface components {
             description?: string | null;
             legalName: string;
             taxIdentifier?: string | null;
-            address?: components["schemas"]["CompanyAddress"];
+            /** @description Optional as a whole; when present it goes through the one validation (backend#155). */
+            address?: components["schemas"]["PostalAddressRequest"] | null;
             /**
              * @description The company's economic activity, in CNAE. It is what the AT/EP premium rate of its employees' payroll is looked up by, so leaving it out on an update clears it and the next payroll run for that company fails.
              * @example 4719
@@ -4399,7 +4429,8 @@ export interface components {
             active: boolean;
             legalName: string;
             taxIdentifier?: string | null;
-            address: components["schemas"]["CompanyAddress"];
+            /** @description Always present. Empty, with normalized false, when the company or the work center has no address (backend#155). */
+            address: components["schemas"]["PostalAddressResponse"];
             /**
              * @description The company's economic activity, in CNAE. Null when the company does not declare one.
              * @example 4719
@@ -4422,18 +4453,11 @@ export interface components {
         CompanyErrorResponse: {
             message: string;
         };
-        CompanyProfileAddress: {
-            street?: string | null;
-            city?: string | null;
-            postalCode?: string | null;
-            regionCode?: string | null;
-            /** @description ISO 3166-1 alpha-3 country code aligned with COUNTRY rule entity codes. */
-            countryCode?: string | null;
-        };
         UpsertCompanyProfileRequest: {
             legalName: string;
             taxIdentifier?: string | null;
-            address?: components["schemas"]["CompanyProfileAddress"];
+            /** @description Optional as a whole; when present it goes through the one validation (backend#155). */
+            address?: components["schemas"]["PostalAddressRequest"] | null;
             /**
              * @description The company's economic activity, in CNAE. It is what the AT/EP premium rate is looked up by: the tariff lists two-, three- and four-digit entries and the most specific one covering this code wins. It was called epigrafeAtCode until b4rrhh/backend#122 and the old name is gone, with no alias: the "epigrafe" is the pre-2007 tariff and means nothing today.
              * @example 4719
@@ -4444,7 +4468,8 @@ export interface components {
             companyCode: string;
             legalName: string;
             taxIdentifier?: string | null;
-            address: components["schemas"]["CompanyProfileAddress"];
+            /** @description Always present. Empty, with normalized false, when the company or the work center has no address (backend#155). */
+            address: components["schemas"]["PostalAddressResponse"];
             /**
              * @description The company's economic activity, in CNAE. Null when the company does not declare one, and then its employees' payroll cannot resolve the AT/EP premium rate: the run fails instead of contributing zero, because a zero there is a wrong figure that nothing reports.
              * @example 4719
@@ -4516,14 +4541,6 @@ export interface components {
             /** @description Whether the agreement profile should be active. Defaults to true if not specified. */
             active?: boolean | null;
         };
-        WorkCenterAddress: {
-            street?: string | null;
-            city?: string | null;
-            postalCode?: string | null;
-            regionCode?: string | null;
-            /** @description ISO 3166-1 alpha-3 country code aligned with COUNTRY rule entity codes. */
-            countryCode?: string | null;
-        };
         CreateWorkCenterRequest: {
             ruleSystemCode: string;
             workCenterCode: string;
@@ -4533,14 +4550,16 @@ export interface components {
             startDate: string;
             /** @description Optional COMPANY code validated against the rule system catalog on the work center start date. */
             companyCode?: string | null;
-            address?: components["schemas"]["WorkCenterAddress"];
+            /** @description Optional as a whole; when present it goes through the one validation (backend#155). */
+            address?: components["schemas"]["PostalAddressRequest"] | null;
         };
         UpdateWorkCenterRequest: {
             name: string;
             description?: string | null;
             /** @description Optional COMPANY code validated against the rule system catalog on the current server date. */
             companyCode?: string | null;
-            address?: components["schemas"]["WorkCenterAddress"];
+            /** @description Optional as a whole; when present it goes through the one validation (backend#155). */
+            address?: components["schemas"]["PostalAddressRequest"] | null;
         };
         WorkCenterContactResponse: {
             /** Format: int32 */
@@ -4572,13 +4591,15 @@ export interface components {
             endDate?: string | null;
             active: boolean;
             companyCode?: string | null;
-            address: components["schemas"]["WorkCenterAddress"];
+            /** @description Always present. Empty, with normalized false, when the company or the work center has no address (backend#155). */
+            address: components["schemas"]["PostalAddressResponse"];
         };
         WorkCenterListItemResponse: {
             ruleSystemCode: string;
             workCenterCode: string;
             name: string;
             companyCode?: string | null;
+            /** @description The town as shown, composed from the address (backend#155): the municipality name, with the locality before it when there is one. */
             city?: string | null;
             countryCode?: string | null;
             active: boolean;
@@ -4809,14 +4830,18 @@ export interface components {
         PayrollCompanyProfileResponse: {
             legalName?: string;
             taxIdentifier?: string;
+            /** @description The street line as printed on the payslip, composed from the structured address (backend#155). */
             street?: string;
+            /** @description The town as printed on the payslip, composed from the structured address (backend#155). */
             city?: string;
             postalCode?: string;
         };
         PayrollEmployeeProfileResponse: {
             fullName?: string;
             nif?: string;
+            /** @description The street line as printed on the payslip, composed from the structured address (backend#155). */
             street?: string;
+            /** @description The town as printed on the payslip, composed from the structured address (backend#155). */
             city?: string;
             postalCode?: string;
         };
