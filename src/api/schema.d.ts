@@ -946,6 +946,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/layers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the layers, with their level and the rule systems that mount them
+         * @description Every layer, ordered by level and code (ADR-077). A layer is not a rule system: no payroll
+         *     is calculated in INT and nobody is hired in it, so the scope selector never offers one
+         *     (`GET /rule-systems` lists assemblies only).
+         */
+        get: operations["listLayers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/layers/{layerCode}/rule-entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the rule entities that live in a layer */
+        get: operations["listLayerRuleEntities"];
+        put?: never;
+        /**
+         * Create a rule entity in a layer
+         * @description Creates the entity in the layer of the path. The type must live at the level of that
+         *     layer (ADR-077 §4): a COUNTRY is created in INT, never in ESP.
+         */
+        post: operations["createLayerRuleEntity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/layers/{layerCode}/rule-entities/{ruleEntityTypeCode}/{code}/{startDate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Correct a rule entity occurrence of a layer
+         * @description Corrects the row of the layer, so every rule system that mounts the layer sees the
+         *     change: correcting a country in INT is correcting it for ESP, FRA and PRT.
+         */
+        put: operations["correctLayerRuleEntity"];
+        post?: never;
+        /**
+         * Delete a rule entity occurrence of a layer
+         * @description Allowed only when nothing references the code from any rule system that mounts the
+         *     layer: a country of INT used by one employee of FRA is in use.
+         */
+        delete: operations["deleteLayerRuleEntity"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/layers/{layerCode}/rule-entities/{ruleEntityTypeCode}/{code}/{startDate}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close a rule entity occurrence of a layer */
+        post: operations["closeLayerRuleEntity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/labor-classification-catalog/agreement-categories": {
         parameters: {
             query?: never;
@@ -4590,6 +4677,51 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
         };
+        LayerResponse: {
+            /** @example INT */
+            code: string;
+            name: string;
+            /** @description 1 Common, 2 International, 3 National, 4 National payroll, 5 Company payroll. */
+            level: number;
+            active: boolean;
+            /**
+             * @description The rule systems that mount the layer, ordered by code: the ones that see a change made in it.
+             * @example [
+             *       "ESP",
+             *       "FRA",
+             *       "PRT"
+             *     ]
+             */
+            mountedBy: string[];
+        };
+        CreateLayerRuleEntityRequest: {
+            ruleEntityTypeCode: string;
+            code: string;
+            name: string;
+            description?: string | null;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+        };
+        /** @description A rule entity seen from its layer, not from a rule system: that is why it has no ruleSystemCode. */
+        LayerRuleEntityResponse: {
+            /** @example INT */
+            layerCode: string;
+            level: number;
+            ruleEntityTypeCode: string;
+            code: string;
+            /** @description The stored literal, the one that is edited (ADR-052 §1). */
+            name: string;
+            /** @description The literal in the language of Accept-Language, or the stored name when there is no translation for it (ADR-052 §3). */
+            label: string;
+            description?: string | null;
+            active: boolean;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+        };
         CorrectRuleEntityRequest: {
             name: string;
             description?: string | null;
@@ -5315,6 +5447,8 @@ export interface components {
         TerritoryRuleSystemCode: string;
         /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
         AcceptLanguage: string;
+        /** @description The code of a layer (ADR-077), such as `COM`, `INT` or `ESP`. Never a rule system. */
+        LayerCode: string;
     };
     requestBodies: never;
     headers: never;
@@ -8565,6 +8699,265 @@ export interface operations {
                 content?: never;
             };
             /** @description Rule entity occurrence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Domain conflict while closing the occurrence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listLayers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Layers list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayerResponse"][];
+                };
+            };
+        };
+    };
+    listLayerRuleEntities: {
+        parameters: {
+            query?: {
+                ruleEntityTypeCode?: string;
+                code?: string;
+                active?: boolean;
+                /** @description Optional date used to return only occurrences valid on that day. */
+                referenceDate?: string;
+            };
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                /** @description The code of a layer (ADR-077), such as `COM`, `INT` or `ESP`. Never a rule system. */
+                layerCode: components["parameters"]["LayerCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rule entities of the layer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayerRuleEntityResponse"][];
+                };
+            };
+            /** @description Layer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleEntityErrorResponse"];
+                };
+            };
+        };
+    };
+    createLayerRuleEntity: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                /** @description The code of a layer (ADR-077), such as `COM`, `INT` or `ESP`. Never a rule system. */
+                layerCode: components["parameters"]["LayerCode"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLayerRuleEntityRequest"];
+            };
+        };
+        responses: {
+            /** @description Rule entity created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayerRuleEntityResponse"];
+                };
+            };
+            /**
+             * @description The rule entity type does not exist, does not live at the level of the layer, the
+             *     business key is already taken in the layer, or the type declares required extensions
+             *     and is maintained by its own endpoint (backend#88).
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleEntityErrorResponse"];
+                };
+            };
+            /** @description Layer not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleEntityErrorResponse"];
+                };
+            };
+        };
+    };
+    correctLayerRuleEntity: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                /** @description The code of a layer (ADR-077), such as `COM`, `INT` or `ESP`. Never a rule system. */
+                layerCode: components["parameters"]["LayerCode"];
+                ruleEntityTypeCode: string;
+                code: string;
+                startDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorrectRuleEntityRequest"];
+            };
+        };
+        responses: {
+            /** @description Rule entity occurrence corrected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayerRuleEntityResponse"];
+                };
+            };
+            /** @description Invalid request payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Layer or rule entity occurrence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Domain conflict while correcting the occurrence */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteLayerRuleEntity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The code of a layer (ADR-077), such as `COM`, `INT` or `ESP`. Never a rule system. */
+                layerCode: components["parameters"]["LayerCode"];
+                ruleEntityTypeCode: string;
+                code: string;
+                startDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rule entity deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Layer or rule entity occurrence not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rule entity is in use from some rule system and cannot be deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    closeLayerRuleEntity: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                /** @description The code of a layer (ADR-077), such as `COM`, `INT` or `ESP`. Never a rule system. */
+                layerCode: components["parameters"]["LayerCode"];
+                ruleEntityTypeCode: string;
+                code: string;
+                startDate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseRuleEntityRequest"];
+            };
+        };
+        responses: {
+            /** @description Rule entity occurrence closed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayerRuleEntityResponse"];
+                };
+            };
+            /** @description Invalid request payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Layer or rule entity occurrence not found */
             404: {
                 headers: {
                     [name: string]: unknown;
