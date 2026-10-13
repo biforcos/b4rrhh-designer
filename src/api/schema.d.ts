@@ -911,6 +911,9 @@ export interface paths {
          * @description Corrects mutable fields of the same occurrence identified by the full business key.
          *     Identity fields (ruleSystemCode, ruleEntityTypeCode, code, startDate) are immutable.
          *     This operation does not create a new occurrence.
+         *     A rule system sees the entities of every layer it mounts, but writes only in its national
+         *     one (backend#166): an entity of COM or INT is answered with 409, naming its layer and the
+         *     /layers/{layerCode}/rule-entities path where it is maintained.
          */
         put: operations["correctRuleEntityByBusinessKey"];
         post?: never;
@@ -918,6 +921,9 @@ export interface paths {
          * Delete rule entity by functional business key
          * @description Delete is allowed only when the target rule entity exists and is not referenced by business resources.
          *     This operation is business-key only and does not use technical identifiers.
+         *     A rule system sees the entities of every layer it mounts, but writes only in its national
+         *     one (backend#166): an entity of COM or INT is answered with 409, naming its layer and the
+         *     /layers/{layerCode}/rule-entities path where it is maintained.
          */
         delete: operations["deleteRuleEntityByBusinessKey"];
         options?: never;
@@ -938,6 +944,9 @@ export interface paths {
          * Close rule entity occurrence validity
          * @description Explicit domain action to close an existing occurrence by setting endDate.
          *     Identity fields remain immutable.
+         *     A rule system sees the entities of every layer it mounts, but writes only in its national
+         *     one (backend#166): an entity of COM or INT is answered with 409, naming its layer and the
+         *     /layers/{layerCode}/rule-entities path where it is maintained.
          */
         post: operations["closeRuleEntityByBusinessKey"];
         delete?: never;
@@ -8534,6 +8543,19 @@ export interface operations {
                     "application/json": components["schemas"]["RuleEntityErrorResponse"];
                 };
             };
+            /**
+             * @description The rule entity type lives in a shared layer (COM or INT), not in the national layer of
+             *     the rule system (backend#166). The message names the layer and the
+             *     /layers/{layerCode}/rule-entities path where it is created.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleEntityErrorResponse"];
+                };
+            };
         };
     };
     getRuleEntityByBusinessKey: {
@@ -8652,7 +8674,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Rule entity is in use and cannot be deleted */
+            /** @description Rule entity is in use and cannot be deleted, or it is defined in another layer */
             409: {
                 headers: {
                     [name: string]: unknown;
