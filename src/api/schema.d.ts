@@ -2406,7 +2406,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/territory/{ruleSystemCode}/provinces": {
+    "/territory/{countryCode}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2414,8 +2414,28 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The provinces, each with its region
-         * @description The PROVINCE entities of the national layer, by INE code, each with its ISO 3166-2 code and its region (backend#154, ADR-078).
+         * Whether a country has a territory loaded, and why not when it has none
+         * @description The territory of a country is read from its national layer: the level-3 layer of the rule system whose country is that one (backend#169, ADR-077). A country without a rule system of its own (ITA) has none: its provinces and street types come back empty, and this says why. Outside the countries with a territory an address is country, postal code and text.
+         */
+        get: operations["describeTerritoryOfCountry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/territory/{countryCode}/provinces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The provinces of a country, each with its region
+         * @description The PROVINCE entities of the national layer of the country, by INE code, each with its ISO 3166-2 code and its region (backend#154, ADR-078). The same whichever rule system asks (backend#169): an employee of FRA living in Valencia finds the provinces of Spain. Empty for a country without a territory; GET /territory/{countryCode} says why.
          */
         get: operations["listTerritoryProvinces"];
         put?: never;
@@ -2426,7 +2446,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/territory/{ruleSystemCode}/street-types": {
+    "/territory/{countryCode}/street-types": {
         parameters: {
             query?: never;
             header?: never;
@@ -2434,8 +2454,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The street types
-         * @description The STREET_TYPE entities of the national layer: for ESP, the 93 abbreviations of Annex II of the Catastro free web services, version 2.6, written as the Catastro writes them.
+         * The street types of a country
+         * @description The STREET_TYPE entities of the national layer of the country: for ESP, the 93 abbreviations of Annex II of the Catastro free web services, version 2.6, written as the Catastro writes them. Empty for a country without a territory (backend#169).
          */
         get: operations["listTerritoryStreetTypes"];
         put?: never;
@@ -2446,7 +2466,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/territory/{ruleSystemCode}/municipalities": {
+    "/territory/{countryCode}/municipalities": {
         parameters: {
             query?: never;
             header?: never;
@@ -2455,7 +2475,7 @@ export interface paths {
         };
         /**
          * Search municipalities of a country by name, in force on a date
-         * @description Municipalities whose name has a word starting with `name`, ignoring case, accents and the slash of bilingual names: «Vale» finds «València» and «Valencia de Alcántara». Only those in force on `date`. A start date means «in force since at least» (ADR-078): it is the date of the first INE relation loaded that lists the municipality, not its creation date. Names that start with `name` come first, then the rest, each by name.
+         * @description Municipalities whose name has a word starting with `name`, ignoring case, accents and the slash of bilingual names: «Vale» finds «València» and «Valencia de Alcántara». Only those in force on `date`. A start date means «in force since at least» (ADR-078): it is the date of the first INE relation loaded that lists the municipality, not its creation date. Names that start with `name` come first, then the rest, each by name. Empty for a country without municipalities loaded.
          */
         get: operations["searchTerritoryMunicipalities"];
         put?: never;
@@ -2466,7 +2486,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/territory/{ruleSystemCode}/postal-codes/{postalCode}": {
+    "/territory/{countryCode}/postal-codes/{postalCode}": {
         parameters: {
             query?: never;
             header?: never;
@@ -5481,6 +5501,17 @@ export interface components {
              */
             message?: string | null;
         };
+        TerritoryOfCountryResponse: {
+            /** @example ITA */
+            countryCode: string;
+            /** @description Whether a rule system has this country as its own, and so a national layer to read. */
+            hasTerritory: boolean;
+            /**
+             * @description Why there is no territory, when there is none.
+             * @example ITA no tiene territorio cargado; una dirección de allí es país, código postal y texto.
+             */
+            message?: string | null;
+        };
         TerritoryErrorResponse: {
             /** @example TERRITORY_RULE_SYSTEM_NOT_FOUND */
             code: string;
@@ -5489,8 +5520,10 @@ export interface components {
     };
     responses: never;
     parameters: {
-        /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+        /** @description The rule system whose level-2 layer gives the countries it sees. */
         TerritoryRuleSystemCode: string;
+        /** @description ISO 3166-1 alpha-3 country whose territory is read (backend#169): its national layer for provinces and street types, the geo master for municipalities and postal codes. */
+        TerritoryCountryCode: string;
         /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
         AcceptLanguage: string;
         /** @description The code of a layer (ADR-077), such as `COM`, `INT` or `ESP`. Never a rule system. */
@@ -12197,7 +12230,7 @@ export interface operations {
                 "Accept-Language"?: components["parameters"]["AcceptLanguage"];
             };
             path: {
-                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
+                /** @description The rule system whose level-2 layer gives the countries it sees. */
                 ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
             };
             cookie?: never;
@@ -12224,34 +12257,48 @@ export interface operations {
             };
         };
     };
-    listTerritoryProvinces: {
+    describeTerritoryOfCountry: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
-                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+                /** @description ISO 3166-1 alpha-3 country whose territory is read (backend#169): its national layer for provinces and street types, the geo master for municipalities and postal codes. */
+                countryCode: components["parameters"]["TerritoryCountryCode"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description The provinces, by code */
+            /** @description Whether the country has a territory */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TerritoryOfCountryResponse"];
+                };
+            };
+        };
+    };
+    listTerritoryProvinces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ISO 3166-1 alpha-3 country whose territory is read (backend#169): its national layer for provinces and street types, the geo master for municipalities and postal codes. */
+                countryCode: components["parameters"]["TerritoryCountryCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The provinces, by code, or an empty array */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["TerritoryProvinceResponse"][];
-                };
-            };
-            /** @description The rule system does not exist */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TerritoryErrorResponse"];
                 };
             };
         };
@@ -12261,14 +12308,14 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
-                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+                /** @description ISO 3166-1 alpha-3 country whose territory is read (backend#169): its national layer for provinces and street types, the geo master for municipalities and postal codes. */
+                countryCode: components["parameters"]["TerritoryCountryCode"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description The street types, by code */
+            /** @description The street types, by code, or an empty array */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12277,21 +12324,11 @@ export interface operations {
                     "application/json": components["schemas"]["TerritoryStreetTypeResponse"][];
                 };
             };
-            /** @description The rule system does not exist */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TerritoryErrorResponse"];
-                };
-            };
         };
     };
     searchTerritoryMunicipalities: {
         parameters: {
             query: {
-                countryCode: string;
                 /** @description At least two characters. */
                 name: string;
                 /** @description The date the municipality has to be in force on. Today when omitted. */
@@ -12300,8 +12337,8 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
-                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+                /** @description ISO 3166-1 alpha-3 country whose territory is read (backend#169): its national layer for provinces and street types, the geo master for municipalities and postal codes. */
+                countryCode: components["parameters"]["TerritoryCountryCode"];
             };
             cookie?: never;
         };
@@ -12325,26 +12362,15 @@ export interface operations {
                     "application/json": components["schemas"]["TerritoryErrorResponse"];
                 };
             };
-            /** @description The rule system does not exist */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TerritoryErrorResponse"];
-                };
-            };
         };
     };
     checkTerritoryPostalCode: {
         parameters: {
-            query: {
-                countryCode: string;
-            };
+            query?: never;
             header?: never;
             path: {
-                /** @description The rule system whose layers are read: countries from its level-2 layer, provinces and street types from its national one. */
-                ruleSystemCode: components["parameters"]["TerritoryRuleSystemCode"];
+                /** @description ISO 3166-1 alpha-3 country whose territory is read (backend#169): its national layer for provinces and street types, the geo master for municipalities and postal codes. */
+                countryCode: components["parameters"]["TerritoryCountryCode"];
                 postalCode: string;
             };
             cookie?: never;
@@ -12362,15 +12388,6 @@ export interface operations {
             };
             /** @description The postal code is not five digits */
             400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TerritoryErrorResponse"];
-                };
-            };
-            /** @description The rule system does not exist */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
