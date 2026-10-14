@@ -4473,6 +4473,8 @@ export interface components {
             startDate: string;
             /** Format: date */
             endDate?: string | null;
+            /** @description The plain-words label of a regulatory citation (backend#173, ADR-054 §3 note): it goes in front and the citation, which is the name and is never translated, behind it ("Baja por enfermedad común · IT Contingencia Común"). Null for everything else. */
+            commonLabel?: string | null;
         };
         DirectCatalogOptionsResponse: {
             ruleSystemCode: string;
