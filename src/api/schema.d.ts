@@ -225,6 +225,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/presences/{presenceNumber}/rectify-start-date": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rectify the hire date of a presence
+         * @description backend#172. Rectifica la fecha de alta de una presencia que se tecleó mal, y con ella todo lo que empezó ese mismo día (contrato, jornada, centro, clasificación, régimen de pagas, centros de coste, dirección). Con dryRun sólo dice lo que movería. Se niega si la presencia tiene recibos definitivos que la fecha afecta, si pisa otra presencia o si algo de la presencia no puede moverse con ella. Deja rastro: quién, cuándo y de qué fecha a cuál.
+         */
+        post: operations["rectifyPresenceStartDate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/presences/{presenceNumber}/rectify-end-date": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rectify the termination date of a presence
+         * @description backend#172. Rectifica la fecha de cese de una presencia que se tecleó mal, y con ella todo lo que acabó ese mismo día (contrato, jornada, centro, clasificación, régimen de pagas, centros de coste). Con dryRun sólo dice lo que movería. Se niega si la presencia tiene recibos definitivos que la fecha afecta, si pisa otra presencia o si algo de la presencia no puede moverse con ella. Deja rastro: quién, cuándo y de qué fecha a cuál.
+         */
+        post: operations["rectifyPresenceEndDate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/addresses": {
         parameters: {
             query?: never;
@@ -3389,6 +3429,43 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
         };
+        RectifyPresenceDateRequest: {
+            /** Format: date */
+            newDate: string;
+            /**
+             * @description Sólo decir lo que movería, sin escribir.
+             * @default false
+             */
+            dryRun: boolean;
+        };
+        RectifyPresenceDateResponse: {
+            /** Format: int32 */
+            presenceNumber: number;
+            /** @enum {string} */
+            field: "START_DATE" | "END_DATE";
+            /** Format: date */
+            oldDate: string;
+            /** Format: date */
+            newDate: string;
+            dryRun: boolean;
+            moves: components["schemas"]["PresenceRectificationMove"][];
+        };
+        PresenceRectificationMove: {
+            vertical: string;
+            label: string;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate?: string | null;
+            /** Format: date */
+            newStartDate: string;
+            /** Format: date */
+            newEndDate?: string | null;
+        };
+        PresenceRectificationErrorResponse: {
+            code: string;
+            message: string;
+        };
         ClosePresenceRequest: {
             /** Format: date */
             endDate: string;
@@ -6200,6 +6277,124 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    rectifyPresenceStartDate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                presenceNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RectifyPresenceDateRequest"];
+            };
+        };
+        responses: {
+            /** @description Lo que se movió, o se movería con dryRun */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RectifyPresenceDateResponse"];
+                };
+            };
+            /** @description Fecha inválida (PRESENCE_RECTIFICATION_INVALID) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceRectificationErrorResponse"];
+                };
+            };
+            /** @description Empleado o presencia inexistentes (PRESENCE_RECTIFICATION_NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceRectificationErrorResponse"];
+                };
+            };
+            /** @description Recibos definitivos (PRESENCE_RECTIFICATION_PAID), otra presencia (PRESENCE_RECTIFICATION_OVERLAP) o algo que no puede moverse (PRESENCE_RECTIFICATION_CONFLICT) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceRectificationErrorResponse"];
+                };
+            };
+        };
+    };
+    rectifyPresenceEndDate: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Language of the catalog labels in the response (ADR-052). Short BCP 47 tag such as `es-ES`, `fr-FR` or `en`; the heaviest language of the header is used. Codes never change. A label without a translation for that language, a missing header or an unrecognised one all fall back to the base literal, silently. */
+                "Accept-Language"?: components["parameters"]["AcceptLanguage"];
+            };
+            path: {
+                ruleSystemCode: string;
+                employeeTypeCode: string;
+                employeeNumber: string;
+                presenceNumber: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RectifyPresenceDateRequest"];
+            };
+        };
+        responses: {
+            /** @description Lo que se movió, o se movería con dryRun */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RectifyPresenceDateResponse"];
+                };
+            };
+            /** @description Fecha inválida (PRESENCE_RECTIFICATION_INVALID) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceRectificationErrorResponse"];
+                };
+            };
+            /** @description Empleado o presencia inexistentes (PRESENCE_RECTIFICATION_NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceRectificationErrorResponse"];
+                };
+            };
+            /** @description Recibos definitivos (PRESENCE_RECTIFICATION_PAID), otra presencia (PRESENCE_RECTIFICATION_OVERLAP) o algo que no puede moverse (PRESENCE_RECTIFICATION_CONFLICT) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresenceRectificationErrorResponse"];
+                };
             };
         };
     };
