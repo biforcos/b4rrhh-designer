@@ -4555,8 +4555,8 @@ export interface components {
             description?: string | null;
             /** Format: date */
             startDate: string;
-            /** @description Optional COMPANY code validated against the rule system catalog on the work center start date. */
-            companyCode?: string | null;
+            /** @description The COMPANY the work center belongs to, validated against the rule system catalog on the work center start date. Required: the database has required it since V40 (backend#167). */
+            companyCode: string;
             /** @description Optional as a whole; when present it goes through the one validation (backend#155). */
             address?: components["schemas"]["PostalAddressRequest"] | null;
         };
