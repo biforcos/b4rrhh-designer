@@ -5471,6 +5471,11 @@ export interface components {
             /** @description A suggestion from GeoNames (CC BY 4.0), never a validation. */
             suggestedMunicipality?: components["schemas"]["TerritoryMunicipalityRefResponse"] | null;
             /**
+             * @description Whether the postal code is in the geo master (backend#170). A Spanish address is normalized only with a known one (backend#155): false here is the CP_DESCONOCIDO it would be saved with. Always false outside the countries the master has postal codes of.
+             * @example true
+             */
+            known: boolean;
+            /**
              * @description Why there is no province, when there is none.
              * @example Las dos primeras cifras de 99999 no son una provincia.
              */
