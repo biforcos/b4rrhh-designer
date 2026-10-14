@@ -5622,7 +5622,7 @@ export interface operations {
     listEmployees: {
         parameters: {
             query?: {
-                /** @description Free text search over employee number and name-related fields. */
+                /** @description Free text search over employee number and name-related fields. The employee number is also matched by its digits without the padding zeros ("25", "0025" and "EMP25" find EMP000025), and the exact number comes first (b4rrhh/frontend#141). */
                 q?: string;
                 ruleSystemCode?: string;
                 /** @description Optional in V1. Defaults to 'EMP' when not provided. */
@@ -10500,7 +10500,10 @@ export interface operations {
             query?: {
                 ruleSystemCode?: string;
                 payrollPeriodCode?: string;
+                /** @description The exact employee number (the jump from the employee file). */
                 employeeNumber?: string;
+                /** @description What is typed in the list (b4rrhh/frontend#141): part of the employee number, case and leading zeros aside ("25", "0025" and "EMP25" find EMP000025), or part of the employee's name. When present it takes over from employeeNumber. */
+                q?: string;
                 status?: "NOT_VALID" | "CALCULATED" | "EXPLICIT_VALIDATED" | "DEFINITIVE";
                 /** @description Zero-based page index. Defaults to 0. */
                 page?: number;
