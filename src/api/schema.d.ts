@@ -53,8 +53,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Who already owns an identity document in a rule system
-         * @description Read-only question the hire screen asks before the hire is sent (b4rrhh/backend#149): the owner is the same one the hire's 409 `HIRE_IDENTIFIER_ALREADY_EXISTS` names, found by the same lookup, so the value is compared without case or surrounding spaces. It is a courtesy, not the guarantee: two hires at once with the same document are only told apart by the hire itself.
+         * Whether an identity document is well written and who already owns it in a rule system
+         * @description Read-only question the hire screen asks before the hire is sent (b4rrhh/backend#149, backend#171). First, whether the document is well written for its type, with the validator the hire uses and the same reason in words («la letra debería ser Z»); a document that is not has no owner. Then the owner, the same one the hire's 409 `HIRE_IDENTIFIER_ALREADY_EXISTS` names, found by the same lookup, so the value is compared without case or surrounding spaces. It is a courtesy, not the guarantee: two hires at once with the same document are only told apart by the hire itself.
          */
         get: operations["findIdentifierOwner"];
         put?: never;
@@ -3033,19 +3033,26 @@ export interface components {
             endDate?: string | null;
             benefitEntitled: boolean;
         };
-        /** @description The employee who already owns a document (b4rrhh/backend#149), with the same fields as the `details` of the hire's `HIRE_IDENTIFIER_ALREADY_EXISTS`, plus the sentence. */
+        /** @description Whether a document is well written (b4rrhh/backend#171) and, when it is and has an owner, the employee who owns it (b4rrhh/backend#149), with the same fields as the `details` of the hire's `HIRE_IDENTIFIER_ALREADY_EXISTS`, plus the sentence. The owner's fields are absent when there is none. */
         IdentifierOwnerResponse: {
-            employeeTypeCode: string;
-            employeeNumber: string;
+            /** @description Well written for its type; false has no owner. */
+            valid: boolean;
+            /**
+             * @description Why it is not, in words, the same the hire gives.
+             * @example la letra debería ser Z
+             */
+            reason?: string | null;
+            employeeTypeCode?: string | null;
+            employeeNumber?: string | null;
             /** @description Has a presence open today or ending in the future. */
-            active: boolean;
+            active?: boolean | null;
             /**
              * Format: date
              * @description The last day of his last presence, when ceased.
              */
             ceasedOn?: string | null;
             /** @description «Este DNI ya es EMP000123 (cesado el 13/05/2026)», or «…, que está de alta». */
-            message: string;
+            message?: string | null;
         };
         RehireEmployeeRequest: {
             /** Format: date */
@@ -5620,12 +5627,14 @@ export interface operations {
                     "application/json": components["schemas"]["HireEmployeeResponse"];
                 };
             };
-            /** @description Invalid request payload. */
+            /** @description Invalid request payload. A document that is not well written for its type is `INVALID_IDENTIFIER`, with `details.field` = `identifier` and the reason in words in `message`, the same the identifier-owner query gives (b4rrhh/backend#171): «El DNI 12345678A no es válido: la letra debería ser Z.» */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["HireEmployeeErrorResponse"];
+                };
             };
             /** @description Required catalog dependency not found (rule system, company, etc). */
             404: {
@@ -5667,6 +5676,8 @@ export interface operations {
                 ruleSystemCode: string;
                 identifierTypeCode: string;
                 identifierValue: string;
+                /** @description The country that issued it. A Spanish NATIONAL_ID (DNI or NIE) is only judged with ESP here, as the hire judges it; without it, only the owner is asked. */
+                issuingCountryCode?: string;
             };
             header?: never;
             path?: never;
@@ -5674,7 +5685,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The document already belongs to this employee. */
+            /** @description Whether it is well written and, when it is and has an owner, who. A free, well written document comes back valid and without owner. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5682,13 +5693,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["IdentifierOwnerResponse"];
                 };
-            };
-            /** @description No employee of the rule system has this document. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description A query parameter is missing. */
             400: {
