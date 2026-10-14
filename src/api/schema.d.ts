@@ -4583,8 +4583,8 @@ export interface components {
         UpdateWorkCenterRequest: {
             name: string;
             description?: string | null;
-            /** @description Optional COMPANY code validated against the rule system catalog on the current server date. */
-            companyCode?: string | null;
+            /** @description The COMPANY the work center belongs to, validated against the rule system catalog on the current server date. Required, as on creation: a work center cannot be left without one (backend#167). */
+            companyCode: string;
             /** @description Optional as a whole; when present it goes through the one validation (backend#155). */
             address?: components["schemas"]["PostalAddressRequest"] | null;
         };
