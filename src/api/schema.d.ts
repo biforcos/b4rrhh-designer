@@ -5058,6 +5058,8 @@ export interface components {
             calculatedAt: string;
             /** @description Whether another presence of the same employee has a payroll of the same period and type (terminated and rehired within the month). Counted in the database, not in the page: the sister payroll may be on another page or excluded by the status filter. The presence number only tells payrolls apart when this is true (b4rrhh/frontend#104). */
             sharesPeriodWithAnotherPresence: boolean;
+            /** @description The employee's name (first name and surnames), for the list: searching by name has to show why each row matched (b4rrhh/frontend#143). The payroll does not store it; null if the employee is not found. */
+            employeeName?: string | null;
         };
         PayrollErrorResponse: {
             /**
