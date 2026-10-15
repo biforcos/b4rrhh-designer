@@ -10626,7 +10626,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The payslip document. Archived when the payroll is DEFINITIVE, rendered on demand and marked as a draft otherwise. */
+            /** @description The payslip document. Archived when the payroll is DEFINITIVE, rendered on demand and marked as a draft otherwise. A DEFINITIVE payroll whose document is missing from the store has it redrawn from its definitive rows, stored and served: the PDF is a pure function of those rows, so it is the same document. */
             200: {
                 headers: {
                     /** @description true when the body is the archived document of a closed payslip, false when it was rendered on demand and carries the draft mark. */
@@ -10641,15 +10641,6 @@ export interface operations {
             };
             /** @description Payroll not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollErrorResponse"];
-                };
-            };
-            /** @description PAYSLIP_DOCUMENT_NOT_ARCHIVED. The payroll is closed and its document is not in the store, which can only happen for payrolls closed before closing emitted the document. It is not regenerated: that would be another document of the same payslip. */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
