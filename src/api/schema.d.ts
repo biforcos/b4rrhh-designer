@@ -1963,7 +1963,7 @@ export interface paths {
         };
         /**
          * The employee photo, served by the API
-         * @description Needs no token, on purpose: an <img> does not send the Authorization header. The key is v, the UUID of the current photo, which only someone who read the employee with a token knows (it comes inside photoUrl). Without it, or with an old one, the answer is 404, the same as for an employee without a photo. Cached for a year: a new photo is a new link.
+         * @description Needs no token, on purpose: an <img> does not send the Authorization header. The key is v, the UUID of the current photo, which only someone who read the employee with a token knows (it comes inside photoUrl). Without it, or with an old one, the answer is 404, the same as for an employee without a photo. Cached for a year, in the browser only (private): a new photo is a new link, and no shared cache keeps a deleted one.
          */
         get: operations["getEmployeePhoto"];
         /**
@@ -11708,7 +11708,7 @@ export interface operations {
                 headers: {
                     /** @description The storage key of the photo. */
                     ETag?: string;
-                    /** @description public, max-age=31536000, immutable */
+                    /** @description private, max-age=31536000, immutable */
                     "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
