@@ -3362,6 +3362,8 @@ export interface components {
             /** @description The first name, apart from displayName: the avatar initials are first name and first surname, and a compound first name cannot be told apart in displayName (frontend#144). */
             firstName: string;
             lastName1: string;
+            /** @description The preferred name, when there is one. It is what displayName shows, so the avatar initials come from it and not from the first name (frontend#144). */
+            preferredName?: string | null;
             /** @description Link to the photo, the same as in EmployeeResponse: relative and served by the API (backend#177). Null without a photo. */
             photoUrl?: string | null;
         };
