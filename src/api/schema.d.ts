@@ -1954,23 +1954,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/photo/upload-url": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Generate a presigned MinIO PUT URL for employee photo upload */
-        post: operations["generatePhotoUploadUrl"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/employees/{ruleSystemCode}/{employeeTypeCode}/{employeeNumber}/photo": {
         parameters: {
             query?: never;
@@ -1978,11 +1961,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        /** Confirm photo upload and persist the public URL */
-        put: operations["confirmEmployeePhoto"];
+        /**
+         * The employee photo, served by the API
+         * @description Needs no token, on purpose: an <img> does not send the Authorization header. The key is v, the UUID of the current photo, which only someone who read the employee with a token knows (it comes inside photoUrl). Without it, or with an old one, the answer is 404, the same as for an employee without a photo. Cached for a year: a new photo is a new link.
+         */
+        get: operations["getEmployeePhoto"];
+        /**
+         * Upload the employee photo in one request
+         * @description The body is the JPEG itself. The API checks it (it has to start like a JPEG and weigh at most 2 MB), stores it under a new key and only then removes the previous one. Replaces the three-step flow of a presigned URL, a direct upload and a confirmation.
+         */
+        put: operations["uploadEmployeePhoto"];
         post?: never;
-        /** Delete employee photo from MinIO and clear photo_url */
+        /** Delete the employee photo */
         delete: operations["deleteEmployeePhoto"];
         options?: never;
         head?: never;
@@ -3312,6 +3302,7 @@ export interface components {
              * @description Only for TERMINATED or NOT_HIRED: start of the next presence, when one is recorded (a rehire or a hire in the future).
              */
             plannedHireDate?: string | null;
+            /** @description Link to the photo, relative and served by the API: /api/employees/ESP/INTERNAL/EMP000025/photo?v=<uuid>. Null without a photo. The v changes with every new photo (backend#177). */
             photoUrl?: string | null;
             /** @description Computed display name based on the rule system's configured format. */
             displayName: string;
@@ -5360,12 +5351,9 @@ export interface components {
             hourlyValue?: number;
             active?: boolean;
         };
-        GeneratePhotoUploadUrlResponse: {
-            uploadUrl?: string;
-            objectKey?: string;
-        };
-        ConfirmEmployeePhotoRequest: {
-            objectKey: string;
+        EmployeePhotoErrorResponse: {
+            code: string;
+            message: string;
         };
         CreateEmployeeTaxInformationRequest: {
             /** Format: date */
@@ -11699,9 +11687,12 @@ export interface operations {
             };
         };
     };
-    generatePhotoUploadUrl: {
+    getEmployeePhoto: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The version of the photo, as it comes in photoUrl. */
+                v?: string;
+            };
             header?: never;
             path: {
                 ruleSystemCode: string;
@@ -11712,18 +11703,38 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Presigned upload URL and object key */
+            /** @description The photo */
             200: {
+                headers: {
+                    /** @description The storage key of the photo. */
+                    ETag?: string;
+                    /** @description public, max-age=31536000, immutable */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description No photo for that employee and version. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PHOTO_STORAGE_UNAVAILABLE. The photo store did not answer. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GeneratePhotoUploadUrlResponse"];
+                    "application/json": components["schemas"]["EmployeePhotoErrorResponse"];
                 };
             };
         };
     };
-    confirmEmployeePhoto: {
+    uploadEmployeePhoto: {
         parameters: {
             query?: never;
             header?: never;
@@ -11736,17 +11747,53 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ConfirmEmployeePhotoRequest"];
+                "image/jpeg": string;
             };
         };
         responses: {
-            /** @description Updated employee with new photoUrl */
+            /** @description Updated employee with its new photoUrl */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["EmployeeResponse"];
+                };
+            };
+            /** @description EMPLOYEE_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePhotoErrorResponse"];
+                };
+            };
+            /** @description PHOTO_TOO_LARGE. More than 2 MB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePhotoErrorResponse"];
+                };
+            };
+            /** @description PHOTO_NOT_JPEG. The body is not a JPEG, whatever its Content-Type says. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePhotoErrorResponse"];
+                };
+            };
+            /** @description PHOTO_STORAGE_UNAVAILABLE. The photo store did not answer. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeePhotoErrorResponse"];
                 };
             };
         };
