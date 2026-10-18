@@ -3359,6 +3359,11 @@ export interface components {
             status: components["schemas"]["EmployeeStatus"];
             /** @description Active work center assignment code on current date, when available. */
             workCenterCode?: string | null;
+            /** @description The first name, apart from displayName: the avatar initials are first name and first surname, and a compound first name cannot be told apart in displayName (frontend#144). */
+            firstName: string;
+            lastName1: string;
+            /** @description Link to the photo, the same as in EmployeeResponse: relative and served by the API (backend#177). Null without a photo. */
+            photoUrl?: string | null;
         };
         EmployeeJourneyTracksResponse: {
             employee: components["schemas"]["JourneyEmployeeHeader"];
